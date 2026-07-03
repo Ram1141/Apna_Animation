@@ -1,0 +1,986 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>IGNIS // AI Air Hand Fire & Flame Generator</title>
+    <!-- Modern Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;600;800;900&family=Outfit:wght@300;400;600;800&display=swap" rel="stylesheet">
+
+    <!-- CDN Libraries: Three.js, GSAP, MediaPipe Hands -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/gsap.min.js"></script>
+    
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js" crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.js" crossorigin="anonymous"></script>
+
+    <style>
+        :root {
+            --fire-primary: #ff5500;
+            --fire-secondary: #ffaa00;
+            --fire-accent: #ff0044;
+            --bg-dark: #030206;
+            --glass-bg: rgba(16, 8, 24, 0.78);
+            --glass-border: rgba(255, 85, 0, 0.4);
+            --text-main: #fff0eb;
+            --font-tech: 'Orbitron', sans-serif;
+            --font-main: 'Outfit', sans-serif;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            user-select: none;
+        }
+
+        body, html {
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            background-color: var(--bg-dark);
+            font-family: var(--font-main);
+            color: var(--text-main);
+        }
+
+        /* 3D WebGL Canvas */
+        #canvas-container {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 1;
+        }
+
+        /* Vignette & Heat Distortion FX Layer */
+        .heat-vignette {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 2;
+            pointer-events: none;
+            background: 
+                radial-gradient(circle at center, transparent 35%, rgba(10, 2, 0, 0.9) 100%),
+                linear-gradient(rgba(255, 85, 0, 0.02) 50%, rgba(0, 0, 0, 0.3) 50%);
+            background-size: 100% 100%, 100% 4px;
+        }
+
+        /* Start Overlay */
+        #start-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 100;
+            background: radial-gradient(circle at center, #1a0802 0%, #030105 100%);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            transition: opacity 1.2s cubic-bezier(0.19, 1, 0.22, 1), visibility 1.2s;
+        }
+
+        #start-overlay.hidden {
+            opacity: 0;
+            visibility: hidden;
+            pointer-events: none;
+        }
+
+        .start-card {
+            background: rgba(28, 10, 4, 0.85);
+            border: 1px solid var(--glass-border);
+            border-radius: 28px;
+            padding: 50px 60px;
+            text-align: center;
+            backdrop-filter: blur(20px);
+            box-shadow: 0 0 70px rgba(255, 85, 0, 0.3), inset 0 0 40px rgba(255, 170, 0, 0.1);
+            max-width: 600px;
+            width: 90%;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .start-card::before {
+            content: '';
+            position: absolute;
+            top: -50%;
+            left: -50%;
+            width: 200%;
+            height: 200%;
+            background: linear-gradient(45deg, transparent, rgba(255, 85, 0, 0.15), transparent);
+            transform: rotate(45deg);
+            animation: flameShine 3s infinite linear;
+        }
+
+        @keyframes flameShine {
+            0% { transform: translateY(-100%) rotate(45deg); }
+            100% { transform: translateY(100%) rotate(45deg); }
+        }
+
+        .title-main {
+            font-family: var(--font-tech);
+            font-size: 2.8rem;
+            font-weight: 900;
+            letter-spacing: 6px;
+            color: #fff;
+            text-shadow: 0 0 30px var(--fire-primary), 0 0 60px var(--fire-secondary);
+            margin-bottom: 8px;
+        }
+
+        .title-sub {
+            font-size: 0.9rem;
+            color: var(--fire-secondary);
+            letter-spacing: 5px;
+            text-transform: uppercase;
+            margin-bottom: 35px;
+            font-weight: 600;
+        }
+
+        .start-btn {
+            background: linear-gradient(135deg, rgba(255, 85, 0, 0.7), rgba(255, 0, 68, 0.8));
+            border: 1px solid #ffaa00;
+            color: #fff;
+            padding: 18px 45px;
+            font-family: var(--font-tech);
+            font-size: 1.05rem;
+            font-weight: 800;
+            letter-spacing: 3px;
+            border-radius: 30px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            box-shadow: 0 0 35px rgba(255, 85, 0, 0.5);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .start-btn:hover, .start-btn.hover-active {
+            background: linear-gradient(135deg, #ff8800, #ff0044);
+            box-shadow: 0 0 60px rgba(255, 136, 0, 0.8), 0 0 100px rgba(255, 0, 68, 0.6);
+            transform: scale(1.04) translateY(-2px);
+        }
+
+        /* Top Header UI */
+        .top-bar {
+            position: absolute;
+            top: 25px;
+            left: 30px;
+            right: 30px;
+            z-index: 10;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            pointer-events: none;
+            opacity: 0;
+            transition: opacity 1s ease 1s;
+        }
+
+        .top-bar.active {
+            opacity: 1;
+            pointer-events: auto;
+        }
+
+        .badge {
+            background: rgba(255, 85, 0, 0.15);
+            border: 1px solid var(--fire-primary);
+            padding: 8px 16px;
+            border-radius: 12px;
+            font-family: var(--font-tech);
+            font-size: 0.82rem;
+            color: var(--fire-secondary);
+            letter-spacing: 2px;
+            box-shadow: 0 0 20px rgba(255, 85, 0, 0.3);
+        }
+
+        /* Vertical Side Control Panel */
+        .side-dock {
+            position: absolute;
+            left: 25px;
+            top: 50%;
+            transform: translateY(-50%);
+            z-index: 10;
+            background: var(--glass-bg);
+            border: 1px solid var(--glass-border);
+            border-radius: 24px;
+            padding: 20px 14px;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            backdrop-filter: blur(18px);
+            box-shadow: 0 15px 35px rgba(0, 0, 0, 0.7), 0 0 30px rgba(255, 85, 0, 0.2);
+            opacity: 0;
+            width: 180px;
+            transition: opacity 1s ease 1.2s;
+        }
+
+        .side-dock.active {
+            opacity: 1;
+        }
+
+        .dock-label {
+            font-family: var(--font-tech);
+            font-size: 0.68rem;
+            color: rgba(255, 255, 255, 0.6);
+            letter-spacing: 1.5px;
+            margin-top: 4px;
+            margin-bottom: 2px;
+            text-transform: uppercase;
+        }
+
+        .dock-btn {
+            background: rgba(255, 255, 255, 0.06);
+            border: 1px solid rgba(255, 255, 255, 0.18);
+            color: #fff;
+            padding: 11px 14px;
+            border-radius: 14px;
+            font-size: 0.78rem;
+            font-family: var(--font-tech);
+            letter-spacing: 1.2px;
+            cursor: pointer;
+            transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            width: 100%;
+            justify-content: flex-start;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .dock-btn:hover, .dock-btn.hover-active {
+            background: rgba(255, 85, 0, 0.35);
+            border-color: var(--fire-primary);
+            box-shadow: 0 0 20px rgba(255, 85, 0, 0.6);
+            transform: translateX(4px);
+        }
+
+        .dock-btn.active {
+            background: linear-gradient(135deg, var(--fire-primary), var(--fire-accent));
+            border-color: #fff;
+            box-shadow: 0 0 25px var(--fire-primary);
+        }
+
+        .separator {
+            width: 100%;
+            height: 1px;
+            background: rgba(255, 255, 255, 0.18);
+            margin: 2px 0;
+        }
+
+        /* AI Webcam HUD Preview */
+        #webcam-hud {
+            position: absolute;
+            top: 25px;
+            right: 30px;
+            width: 220px;
+            height: 165px;
+            background: rgba(10, 4, 12, 0.88);
+            border: 1px solid var(--fire-primary);
+            border-radius: 18px;
+            overflow: hidden;
+            z-index: 25;
+            box-shadow: 0 0 30px rgba(255, 85, 0, 0.35);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            backdrop-filter: blur(14px);
+        }
+
+        #webcam-video {
+            display: none;
+        }
+
+        #webcam-canvas {
+            width: 100%;
+            height: 135px;
+            object-fit: cover;
+            transform: scaleX(-1);
+            background: #000;
+        }
+
+        .hud-status {
+            font-family: var(--font-tech);
+            font-size: 0.65rem;
+            color: var(--fire-secondary);
+            padding: 5px 8px;
+            letter-spacing: 1px;
+            text-align: center;
+            width: 100%;
+            background: rgba(255, 85, 0, 0.12);
+        }
+
+        /* Flame Gesture Crosshair Pointer with Hover Ring */
+        #flame-pointer {
+            position: absolute;
+            width: 40px;
+            height: 40px;
+            border: 2px solid var(--fire-primary);
+            border-radius: 50%;
+            pointer-events: none;
+            z-index: 30;
+            transform: translate(-50%, -50%);
+            box-shadow: 0 0 25px var(--fire-primary), inset 0 0 15px var(--fire-secondary);
+            display: block;
+            transition: width 0.15s ease, height 0.15s ease;
+        }
+
+        #flame-pointer::after {
+            content: '';
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            width: 10px;
+            height: 10px;
+            background: #fff;
+            border-radius: 50%;
+            transform: translate(-50%, -50%);
+            box-shadow: 0 0 15px #fff;
+        }
+
+        #flame-progress-ring {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            width: 52px;
+            height: 52px;
+            border: 3px solid transparent;
+            border-top-color: #ffaa00;
+            border-right-color: #ff0044;
+            border-radius: 50%;
+            transform: translate(-50%, -50%) rotate(0deg);
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.2s ease;
+        }
+
+        #flame-progress-ring.active {
+            opacity: 1;
+            animation: flameRingSpin 0.65s linear forwards;
+        }
+
+        @keyframes flameRingSpin {
+            0% { transform: translate(-50%, -50%) rotate(0deg); }
+            100% { transform: translate(-50%, -50%) rotate(360deg); }
+        }
+
+        #flame-pointer.bursting {
+            width: 70px;
+            height: 70px;
+            border-color: #ff0044;
+            box-shadow: 0 0 50px #ff0044, inset 0 0 30px #ffaa00;
+        }
+
+        /* On-Screen Gesture Instructions Overlay */
+        .gesture-guide {
+            position: absolute;
+            bottom: 30px;
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 10;
+            background: rgba(12, 5, 16, 0.8);
+            border: 1px solid rgba(255, 170, 0, 0.3);
+            border-radius: 20px;
+            padding: 10px 24px;
+            font-family: var(--font-tech);
+            font-size: 0.78rem;
+            color: rgba(255, 255, 255, 0.9);
+            letter-spacing: 1.5px;
+            backdrop-filter: blur(12px);
+            display: flex;
+            gap: 20px;
+            opacity: 0;
+            transition: opacity 1s ease 1.5s;
+        }
+
+        .gesture-guide.active {
+            opacity: 1;
+        }
+
+        .guide-item span {
+            color: var(--fire-secondary);
+            font-weight: 700;
+        }
+    </style>
+</head>
+<body>
+    <!-- 3D WebGL Canvas Container -->
+    <div id="canvas-container"></div>
+
+    <!-- Heat Vignette Effect -->
+    <div class="heat-vignette"></div>
+
+    <!-- System Start Overlay -->
+    <div id="start-overlay">
+        <div class="start-card">
+            <div class="title-main">IGNIS</div>
+            <div class="title-sub">AI AIR HAND FIRE GENERATOR</div>
+            <button class="start-btn" id="start-btn">IGNITE FIRE SYSTEM</button>
+        </div>
+    </div>
+
+    <!-- Top Status Header -->
+    <div class="top-bar" id="top-bar">
+        <a href="index.html" class="badge" style="text-decoration: none; background: rgba(255, 85, 0, 0.35); color: #fff; cursor: pointer; pointer-events: auto;">← BACK TO HUB</a>
+        <div class="badge">SYSTEM: IGNITED</div>
+        <div class="badge" id="fire-mode-badge">MODE: FLAME AURA</div>
+        <div class="badge" id="zoom-badge">CAMERA ZOOM: 100%</div>
+    </div>
+
+    <!-- AI Webcam HUD -->
+    <div id="webcam-hud">
+        <video id="webcam-video" playsinline></video>
+        <canvas id="webcam-canvas" width="320" height="240"></canvas>
+        <div class="hud-status" id="hud-status">AI HAND TRACKING: INITIALIZING</div>
+    </div>
+
+    <!-- Flame Pointer with Auto Hover Ring -->
+    <div id="flame-pointer">
+        <div id="flame-progress-ring"></div>
+    </div>
+
+    <!-- Side Control Dock -->
+    <div class="side-dock" id="side-dock">
+        <div class="dock-label">Fire Mode</div>
+        <button class="dock-btn active" data-mode="aura">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 2a7 7 0 0 0 0 14 7 7 0 0 0 0-14z"/></svg>
+            AURA
+        </button>
+        <button class="dock-btn" data-mode="beam">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
+            BEAM
+        </button>
+        <button class="dock-btn" data-mode="vortex">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67"/></svg>
+            VORTEX
+        </button>
+
+        <div class="separator"></div>
+        <div class="dock-label">Flame Color</div>
+
+        <button class="dock-btn" id="color-btn">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
+            COLOR
+        </button>
+        <button class="dock-btn" id="sound-btn">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07"/></svg>
+            ROAR SFX
+        </button>
+    </div>
+
+    <!-- On-screen Hand Gesture Guide -->
+    <div class="gesture-guide" id="gesture-guide">
+        <div class="guide-item"><span>Finger Hover Over Menu:</span> Touchless Auto Select</div>
+        <div class="guide-item"><span>Close Hand:</span> Zoom Fire & Camera</div>
+        <div class="guide-item"><span>2-Finger Join:</span> Fire Explosion</div>
+    </div>
+
+    <!-- JavaScript Engine -->
+    <script>
+        /* ====================================================================
+         * 1. GLOBAL STATE & PALETTES
+         * ==================================================================== */
+        const STATE = {
+            initialized: false,
+            soundEnabled: true,
+            mode: 'aura',
+            colorIndex: 0,
+            handDetected: false,
+            handPos: { x: 0, y: 0, z: 0 },
+            handDistance: 1.0,
+            isExploding: false,
+            time: 0
+        };
+
+        const FLAME_PALETTES = [
+            { name: "CLASSIC INFERNO", core: "#ffffff", inner: "#ffaa00", outer: "#ff3300", smoke: "#440000" },
+            { name: "PLASMA CYAN", core: "#ffffff", inner: "#00f0ff", outer: "#0044ff", smoke: "#001133" },
+            { name: "HELLFIRE PURPLE", core: "#ffffff", inner: "#ff00ff", outer: "#7000ff", smoke: "#220044" },
+            { name: "EMERALD FLAME", core: "#ffffff", inner: "#00ff66", outer: "#008833", smoke: "#002211" },
+            { name: "SOLAR GOLD", core: "#ffffff", inner: "#ffee00", outer: "#ff6600", smoke: "#441100" }
+        ];
+
+        /* ====================================================================
+         * 2. SYNTHETIC REALISTIC FIRE AUDIO ENGINE (WEB AUDIO API)
+         * ==================================================================== */
+        class FireAudioSystem {
+            constructor() {
+                this.ctx = null;
+                this.noiseNode = null;
+                this.gainNode = null;
+            }
+
+            init() {
+                if (this.ctx) return;
+                const AudioCtx = window.AudioContext || window.webkitAudioContext;
+                this.ctx = new AudioCtx();
+
+                const bufferSize = this.ctx.sampleRate * 2;
+                const noiseBuffer = this.ctx.createBuffer(1, bufferSize, this.ctx.sampleRate);
+                const output = noiseBuffer.getChannelData(0);
+                for (let i = 0; i < bufferSize; i++) {
+                    output[i] = Math.random() * 2 - 1;
+                }
+
+                this.noiseNode = this.ctx.createBufferSource();
+                this.noiseNode.buffer = noiseBuffer;
+                this.noiseNode.loop = true;
+
+                const filter = this.ctx.createBiquadFilter();
+                filter.type = 'lowpass';
+                filter.frequency.value = 350;
+
+                this.gainNode = this.ctx.createGain();
+                this.gainNode.gain.value = 0.05;
+
+                this.noiseNode.connect(filter);
+                filter.connect(this.gainNode);
+                this.gainNode.connect(this.ctx.destination);
+                this.noiseNode.start();
+            }
+
+            updateIntensity(intensity) {
+                if (!this.gainNode || !STATE.soundEnabled) return;
+                this.gainNode.gain.setTargetAtTime(0.03 + intensity * 0.15, this.ctx.currentTime, 0.1);
+            }
+
+            playExplosion() {
+                if (!this.ctx || !STATE.soundEnabled) return;
+                try {
+                    const osc = this.ctx.createOscillator();
+                    const gain = this.ctx.createGain();
+                    osc.type = 'sawtooth';
+                    osc.frequency.setValueAtTime(120, this.ctx.currentTime);
+                    osc.frequency.exponentialRampToValueAtTime(30, this.ctx.currentTime + 0.6);
+                    gain.gain.setValueAtTime(0.3, this.ctx.currentTime);
+                    gain.gain.exponentialRampToValueAtTime(0.001, this.ctx.currentTime + 0.6);
+                    osc.connect(gain);
+                    gain.connect(this.ctx.destination);
+                    osc.start();
+                    osc.stop(this.ctx.currentTime + 0.6);
+                } catch(e){}
+            }
+        }
+        const fireAudio = new FireAudioSystem();
+
+        /* ====================================================================
+         * 3. THREE.JS 3D PROCEDURAL FIRE PARTICLE ENGINE
+         * ==================================================================== */
+        const container = document.getElementById('canvas-container');
+        const scene = new THREE.Scene();
+        scene.fog = new THREE.FogExp2(0x030206, 0.03);
+
+        const camera = new THREE.PerspectiveCamera(55, window.innerWidth / window.innerHeight, 0.1, 100);
+        camera.position.set(0, 0, 8);
+
+        const renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: "high-performance" });
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+        renderer.toneMapping = THREE.ACESFilmicToneMapping;
+        renderer.toneMappingExposure = 1.4;
+        container.appendChild(renderer.domElement);
+
+        const ambientLight = new THREE.AmbientLight(0x110500, 1.0);
+        scene.add(ambientLight);
+
+        const firePointLight = new THREE.PointLight(0xff5500, 8.0, 15);
+        scene.add(firePointLight);
+
+        function createFireTexture() {
+            const canvas = document.createElement('canvas');
+            canvas.width = 128;
+            canvas.height = 128;
+            const ctx = canvas.getContext('2d');
+
+            const grad = ctx.createRadialGradient(64, 64, 0, 64, 64, 64);
+            grad.addColorStop(0, 'rgba(255, 255, 255, 1.0)');
+            grad.addColorStop(0.25, 'rgba(255, 200, 50, 0.9)');
+            grad.addColorStop(0.55, 'rgba(255, 70, 0, 0.6)');
+            grad.addColorStop(0.85, 'rgba(180, 0, 0, 0.2)');
+            grad.addColorStop(1, 'rgba(0, 0, 0, 0.0)');
+
+            ctx.fillStyle = grad;
+            ctx.beginPath();
+            ctx.arc(64, 64, 64, 0, Math.PI * 2);
+            ctx.fill();
+
+            return new THREE.CanvasTexture(canvas);
+        }
+
+        const fireTexture = createFireTexture();
+
+        const particleCount = 1200;
+        const particleGeom = new THREE.BufferGeometry();
+        const positions = new Float32Array(particleCount * 3);
+        const velocities = new Float32Array(particleCount * 3);
+        const lifetimes = new Float32Array(particleCount);
+        const maxLifetimes = new Float32Array(particleCount);
+        const sizes = new Float32Array(particleCount);
+
+        for (let i = 0; i < particleCount; i++) {
+            positions[i * 3] = (Math.random() - 0.5) * 0.2;
+            positions[i * 3 + 1] = (Math.random() - 0.5) * 0.2;
+            positions[i * 3 + 2] = (Math.random() - 0.5) * 0.2;
+
+            velocities[i * 3] = (Math.random() - 0.5) * 0.05;
+            velocities[i * 3 + 1] = Math.random() * 0.08 + 0.03;
+            velocities[i * 3 + 2] = (Math.random() - 0.5) * 0.05;
+
+            lifetimes[i] = Math.random();
+            maxLifetimes[i] = 0.8 + Math.random() * 0.8;
+            sizes[i] = Math.random() * 0.4 + 0.2;
+        }
+
+        particleGeom.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+
+        const particleMat = new THREE.PointsMaterial({
+            size: 0.6,
+            map: fireTexture,
+            transparent: true,
+            opacity: 0.9,
+            blending: THREE.AdditiveBlending,
+            depthWrite: false,
+            color: new THREE.Color(0xff5500)
+        });
+
+        const particleSystem = new THREE.Points(particleGeom, particleMat);
+        scene.add(particleSystem);
+
+        const coreGeom = new THREE.SphereGeometry(0.6, 32, 32);
+        const coreMat = new THREE.MeshBasicMaterial({
+            color: 0xffaa00,
+            wireframe: true,
+            transparent: true,
+            opacity: 0.65
+        });
+        const coreMesh = new THREE.Mesh(coreGeom, coreMat);
+        scene.add(coreMesh);
+
+        const ringGeom = new THREE.TorusGeometry(1.2, 0.06, 16, 64);
+        const ringMat = new THREE.MeshBasicMaterial({ color: 0xff0044, transparent: true, opacity: 0.6 });
+        const shockRing = new THREE.Mesh(ringGeom, ringMat);
+        shockRing.rotation.x = Math.PI / 2;
+        scene.add(shockRing);
+
+        /* ====================================================================
+         * 4. AUTOMATIC HOVER-DWELL SELECTION SYSTEM FOR MENU BUTTONS
+         * ==================================================================== */
+        const flamePointer = document.getElementById('flame-pointer');
+        const flameProgressRing = document.getElementById('flame-progress-ring');
+        let activeHoverBtn = null;
+        let hoverTimer = null;
+
+        function updateHoverDwell(screenX, screenY) {
+            const hitEl = document.elementFromPoint(screenX, screenY);
+            const targetBtn = hitEl ? hitEl.closest('.dock-btn, .start-btn, #start-btn') : null;
+
+            if (targetBtn) {
+                if (activeHoverBtn !== targetBtn) {
+                    cancelHoverDwell();
+                    activeHoverBtn = targetBtn;
+                    targetBtn.classList.add('hover-active');
+                    flameProgressRing.classList.add('active');
+
+                    hoverTimer = setTimeout(() => {
+                        if (activeHoverBtn === targetBtn) {
+                            targetBtn.click();
+                            cancelHoverDwell();
+                        }
+                    }, 650); // 650ms automatic dwell trigger
+                }
+            } else {
+                if (activeHoverBtn) {
+                    cancelHoverDwell();
+                }
+            }
+        }
+
+        function cancelHoverDwell() {
+            if (hoverTimer) {
+                clearTimeout(hoverTimer);
+                hoverTimer = null;
+            }
+            if (activeHoverBtn) {
+                activeHoverBtn.classList.remove('hover-active');
+                activeHoverBtn = null;
+            }
+            flameProgressRing.classList.remove('active');
+        }
+
+        /* ====================================================================
+         * 5. AI WEBCAM HAND GESTURE RECOGNITION (MEDIAPIPE)
+         * ==================================================================== */
+        const webcamVideo = document.getElementById('webcam-video');
+        const webcamCanvas = document.getElementById('webcam-canvas');
+        const wCtx = webcamCanvas.getContext('2d');
+        const hudStatus = document.getElementById('hud-status');
+
+        let handsDetector = new Hands({
+            locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${file}`
+        });
+
+        handsDetector.setOptions({
+            maxNumHands: 1,
+            modelComplexity: 1,
+            minDetectionConfidence: 0.6,
+            minTrackingConfidence: 0.6
+        });
+
+        handsDetector.onResults(onHandResults);
+
+        function drawHandSkeleton(landmarks) {
+            wCtx.clearRect(0, 0, webcamCanvas.width, webcamCanvas.height);
+            wCtx.drawImage(webcamVideo, 0, 0, webcamCanvas.width, webcamCanvas.height);
+
+            if (!landmarks) return;
+
+            wCtx.fillStyle = '#ff5500';
+            wCtx.strokeStyle = '#ffaa00';
+            wCtx.lineWidth = 2;
+
+            const connections = [
+                [0,1],[1,2],[2,3],[3,4],
+                [0,5],[5,6],[6,7],[7,8],
+                [5,9],[9,10],[10,11],[11,12],
+                [9,13],[13,14],[14,15],[15,16],
+                [13,17],[17,18],[18,19],[19,20],[0,17]
+            ];
+
+            connections.forEach(([i, j]) => {
+                const pt1 = landmarks[i];
+                const pt2 = landmarks[j];
+                wCtx.beginPath();
+                wCtx.moveTo(pt1.x * webcamCanvas.width, pt1.y * webcamCanvas.height);
+                wCtx.lineTo(pt2.x * webcamCanvas.width, pt2.y * webcamCanvas.height);
+                wCtx.stroke();
+            });
+
+            landmarks.forEach((pt, idx) => {
+                wCtx.beginPath();
+                wCtx.arc(pt.x * webcamCanvas.width, pt.y * webcamCanvas.height, (idx === 8 || idx === 12) ? 5 : 3, 0, Math.PI * 2);
+                wCtx.fillStyle = (idx === 8 || idx === 12) ? '#ff0044' : '#ffaa00';
+                wCtx.fill();
+            });
+        }
+
+        function onHandResults(results) {
+            if (results.multiHandLandmarks && results.multiHandLandmarks.length > 0) {
+                const landmarks = results.multiHandLandmarks[0];
+                drawHandSkeleton(landmarks);
+
+                STATE.handDetected = true;
+
+                // Index Tip (8) & Middle Tip (12)
+                const indexPt = landmarks[8];
+                const middlePt = landmarks[12];
+                const wristPt = landmarks[0];
+
+                const screenX = (1 - indexPt.x) * window.innerWidth;
+                const screenY = indexPt.y * window.innerHeight;
+
+                STATE.handPos.x = ((1 - indexPt.x) * 2 - 1) * 4.5;
+                STATE.handPos.y = -(indexPt.y * 2 - 1) * 3.0;
+
+                const handSpan = Math.sqrt(
+                    Math.pow(indexPt.x - wristPt.x, 2) + Math.pow(indexPt.y - wristPt.y, 2)
+                );
+                
+                STATE.handDistance = THREE.MathUtils.clamp(handSpan * 3.2, 0.6, 2.2);
+
+                flamePointer.style.display = 'block';
+                flamePointer.style.left = `${screenX}px`;
+                flamePointer.style.top = `${screenY}px`;
+
+                // Automatic Touchless Hover-Dwell Selection on Buttons
+                updateHoverDwell(screenX, screenY);
+
+                // Two Finger Join Gesture (Index 8 + Middle 12) => Fire Burst Explosion
+                const dx = middlePt.x - indexPt.x;
+                const dy = middlePt.y - indexPt.y;
+                const twoFingerDist = Math.sqrt(dx * dx + dy * dy);
+
+                if (twoFingerDist < 0.045) {
+                    if (!STATE.isExploding) {
+                        STATE.isExploding = true;
+                        flamePointer.classList.add('bursting');
+                        hudStatus.innerText = "FIRE GESTURE: BLAST EXPLOSION!";
+                        hudStatus.style.color = "#ff0044";
+                        fireAudio.playExplosion();
+
+                        gsap.fromTo(shockRing.scale,
+                            { x: 0.1, y: 0.1, z: 0.1 },
+                            { x: 3.5, y: 3.5, z: 3.5, duration: 0.6, ease: "power2.out" }
+                        );
+                    }
+                } else {
+                    if (STATE.isExploding) {
+                        STATE.isExploding = false;
+                        flamePointer.classList.remove('bursting');
+                    }
+                    hudStatus.innerText = "AIR GESTURE: TOUCHLESS ACTIVE";
+                    hudStatus.style.color = "var(--fire-secondary)";
+                }
+
+                const zoomPercent = Math.round((1 / STATE.handDistance) * 100);
+                document.getElementById('zoom-badge').innerText = `CAMERA ZOOM: ${zoomPercent}%`;
+
+            } else {
+                drawHandSkeleton(null);
+                cancelHoverDwell();
+                STATE.handDetected = false;
+                flamePointer.style.display = 'none';
+                hudStatus.innerText = "AIR GESTURE: SEARCHING HAND...";
+                hudStatus.style.color = "#ffaa00";
+            }
+        }
+
+        async function initCamera() {
+            try {
+                const stream = await navigator.mediaDevices.getUserMedia({ video: { width: 640, height: 480 } });
+                webcamVideo.srcObject = stream;
+                await webcamVideo.play();
+
+                const cameraUtilsInstance = new Camera(webcamVideo, {
+                    onFrame: async () => {
+                        await handsDetector.send({ image: webcamVideo });
+                    },
+                    width: 320,
+                    height: 240
+                });
+                cameraUtilsInstance.start();
+            } catch(e) {
+                console.warn("Camera auto-initialization pending permission.");
+            }
+        }
+
+        // Auto start camera tracking on load
+        window.addEventListener('load', () => {
+            setTimeout(initCamera, 500);
+        });
+
+        /* ====================================================================
+         * 6. UI CONTROLS & EVENT HANDLERS
+         * ==================================================================== */
+        document.getElementById('start-btn').addEventListener('click', () => {
+            fireAudio.init();
+
+            document.getElementById('start-overlay').classList.add('hidden');
+            document.getElementById('top-bar').classList.add('active');
+            document.getElementById('side-dock').classList.add('active');
+            document.getElementById('gesture-guide').classList.add('active');
+
+            STATE.initialized = true;
+        });
+
+        document.querySelectorAll('.dock-btn[data-mode]').forEach(btn => {
+            btn.addEventListener('click', () => {
+                document.querySelectorAll('.dock-btn[data-mode]').forEach(b => b.classList.remove('active'));
+                btn.classList.add('active');
+                STATE.mode = btn.dataset.mode;
+                document.getElementById('fire-mode-badge').innerText = `MODE: FLAME ${STATE.mode.toUpperCase()}`;
+            });
+        });
+
+        document.getElementById('color-btn').addEventListener('click', () => {
+            STATE.colorIndex = (STATE.colorIndex + 1) % FLAME_PALETTES.length;
+            const pal = FLAME_PALETTES[STATE.colorIndex];
+
+            particleMat.color.setStyle(pal.inner);
+            coreMat.color.setStyle(pal.inner);
+            shockRing.material.color.setStyle(pal.outer);
+            firePointLight.color.setStyle(pal.inner);
+
+            document.documentElement.style.setProperty('--fire-primary', pal.inner);
+            document.documentElement.style.setProperty('--fire-secondary', pal.outer);
+        });
+
+        document.getElementById('sound-btn').addEventListener('click', (e) => {
+            STATE.soundEnabled = !STATE.soundEnabled;
+            e.currentTarget.classList.toggle('active', STATE.soundEnabled);
+        });
+
+        /* ====================================================================
+         * 7. MAIN 60 FPS RENDER LOOP
+         * ==================================================================== */
+        const clock = new THREE.Clock();
+
+        function animate() {
+            requestAnimationFrame(animate);
+
+            const delta = clock.getDelta();
+            STATE.time += delta;
+
+            const targetX = STATE.handDetected ? STATE.handPos.x : Math.sin(STATE.time * 1.5) * 1.5;
+            const targetY = STATE.handDetected ? STATE.handPos.y : Math.cos(STATE.time * 1.2) * 0.8;
+
+            coreMesh.position.x += (targetX - coreMesh.position.x) * 0.15;
+            coreMesh.position.y += (targetY - coreMesh.position.y) * 0.15;
+
+            firePointLight.position.copy(coreMesh.position);
+            shockRing.position.copy(coreMesh.position);
+
+            const targetCamZ = STATE.handDetected ? (8 / STATE.handDistance) : 8;
+            camera.position.z += (targetCamZ - camera.position.z) * 0.08;
+
+            coreMesh.rotation.y += delta * 2.0;
+            coreMesh.rotation.x += delta * 1.2;
+
+            let burstMultiplier = STATE.isExploding ? 4.0 : 1.0;
+
+            if (STATE.mode === 'vortex') {
+                shockRing.rotation.z += delta * 4.0;
+            }
+
+            const posAttr = particleGeom.attributes.position;
+            const pArray = posAttr.array;
+
+            for (let i = 0; i < particleCount; i++) {
+                lifetimes[i] += delta * burstMultiplier;
+
+                if (lifetimes[i] >= maxLifetimes[i]) {
+                    lifetimes[i] = 0;
+
+                    let radius = STATE.mode === 'vortex' ? 0.8 : 0.2;
+                    let angle = Math.random() * Math.PI * 2;
+
+                    pArray[i * 3] = coreMesh.position.x + Math.cos(angle) * radius * Math.random();
+                    pArray[i * 3 + 1] = coreMesh.position.y + (Math.random() - 0.5) * 0.2;
+                    pArray[i * 3 + 2] = coreMesh.position.z + Math.sin(angle) * radius * Math.random();
+
+                    if (STATE.mode === 'beam') {
+                        velocities[i * 3] = (Math.random() - 0.5) * 0.1;
+                        velocities[i * 3 + 1] = Math.random() * 0.25 + 0.1;
+                        velocities[i * 3 + 2] = (Math.random() - 0.5) * 0.1;
+                    } else {
+                        velocities[i * 3] = (Math.random() - 0.5) * 0.08 * burstMultiplier;
+                        velocities[i * 3 + 1] = (Math.random() * 0.1 + 0.04) * burstMultiplier;
+                        velocities[i * 3 + 2] = (Math.random() - 0.5) * 0.08 * burstMultiplier;
+                    }
+                } else {
+                    pArray[i * 3] += velocities[i * 3] + Math.sin(STATE.time * 5 + i) * 0.005;
+                    pArray[i * 3 + 1] += velocities[i * 3 + 1];
+                    pArray[i * 3 + 2] += velocities[i * 3 + 2];
+                }
+            }
+
+            posAttr.needsUpdate = true;
+            fireAudio.updateIntensity(STATE.handDetected ? 0.8 : 0.2);
+
+            renderer.render(scene, camera);
+        }
+
+        animate();
+
+        window.addEventListener('resize', () => {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        });
+    </script>
+</body>
+</html>

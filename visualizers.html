@@ -1,0 +1,295 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Interactive Particle Visualizers Showcase</title>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;500;700;900&display=swap" rel="stylesheet">
+    <style>
+        *{margin:0;padding:0;box-sizing:border-box}
+        body{min-height:100vh;background:#05050b;font-family:'Outfit',sans-serif;color:#fff;overflow-x:hidden}
+        
+        header{text-align:center;padding:40px 20px 20px;z-index:20;position:relative}
+        header h1{font-size:36px;font-weight:900;background:linear-gradient(135deg,#00f0ff,#b000ff,#ff007f);-webkit-background-clip:text;-webkit-text-fill-color:transparent;letter-spacing:2px}
+        header p{color:rgba(255,255,255,0.5);font-size:15px;margin-top:8px}
+
+        .controls{display:flex;justify-content:center;gap:12px;margin:20px 0 30px;flex-wrap:wrap;z-index:20;position:relative}
+        .btn{padding:12px 24px;border:1px solid rgba(255,255,255,0.15);background:rgba(255,255,255,0.05);color:#fff;border-radius:30px;font-family:'Outfit',sans-serif;font-weight:600;font-size:14px;cursor:pointer;transition:all 0.3s ease;backdrop-filter:blur(10px)}
+        .btn:hover, .btn.active{background:linear-gradient(135deg,rgba(0,240,255,0.3),rgba(255,0,127,0.3));border-color:rgba(0,240,255,0.6);box-shadow:0 0 20px rgba(0,240,255,0.3);transform:translateY(-2px)}
+
+        .stage{position:relative;width:100%;height:calc(100vh - 200px);display:flex;align-items:center;justify-content:center}
+        #particleCanvas{position:absolute;top:0;left:0;width:100%;height:100%;cursor:pointer}
+        
+        .info-overlay{position:absolute;bottom:30px;text-align:center;pointer-events:none;z-index:20}
+        .info-title{font-size:20px;font-weight:700;letter-spacing:3px;text-transform:uppercase;color:rgba(255,255,255,0.9);text-shadow:0 0 10px rgba(0,240,255,0.5)}
+        .info-desc{font-size:13px;color:rgba(255,255,255,0.4);margin-top:4px}
+    </style>
+</head>
+<body>
+    <header>
+        <h1>INTERACTIVE CANVAS VISUALIZERS</h1>
+        <p>Hover & move mouse over the shapes to trigger magnetic distortion, spotlight lens, and fluid physics</p>
+    </header>
+
+    <div class="controls">
+        <a href="index.html" class="btn" style="text-decoration:none; background:rgba(0,240,255,0.25); border-color:#00f0ff;">← BACK TO HUB</a>
+        <button class="btn active" onclick="switchVisualizer('infinity')">1. Infinity Loop ♾️</button>
+        <button class="btn" onclick="switchVisualizer('saturn')">2. Cosmic Saturn 🪐</button>
+        <button class="btn" onclick="switchVisualizer('diamond')">3. Glowing Diamond 💎</button>
+        <button class="btn" onclick="switchVisualizer('fluid')">4. Cyber Mandala ☸️</button>
+    </div>
+
+    <div class="stage" id="stage">
+        <canvas id="particleCanvas"></canvas>
+        <div class="info-overlay">
+            <div class="info-title" id="infoTitle">INFINITY LOOP</div>
+            <div class="info-desc" id="infoDesc">Dual-ring kinetic particle vortex with magnetic mouse lens</div>
+        </div>
+    </div>
+
+    <script>
+    const canvas = document.getElementById('particleCanvas');
+    const ctx = canvas.getContext('2d');
+    const infoTitle = document.getElementById('infoTitle');
+    const infoDesc = document.getElementById('infoDesc');
+
+    let dots = [];
+    let mouse = {x: -1000, y: -1000};
+    let currentType = 'infinity';
+    let globalTime = 0;
+
+    function resize(){
+        canvas.width = canvas.parentElement.clientWidth;
+        canvas.height = canvas.parentElement.clientHeight;
+        initDots();
+    }
+    window.addEventListener('resize', resize);
+
+    class Dot {
+        constructor(bx, by, colorFactor){
+            this.bx = bx;
+            this.by = by;
+            this.x = bx;
+            this.y = by;
+            this.size = Math.random()*2 + 0.8;
+            this.pulse = Math.random()*Math.PI*2;
+            this.speed = 0.02 + Math.random()*0.03;
+            this.colorFactor = colorFactor;
+            this.hoverFactor = 0;
+        }
+
+        update(cx, cy, mouseX, mouseY, time){
+            let tx = cx + this.bx;
+            let ty = cy + this.by;
+
+            // Type specific kinetic morphing
+            if(currentType === 'infinity'){
+                // Dynamic flow along infinity curve
+                const t = time + this.bx*0.01;
+                tx = cx + Math.sin(t)*160 / (1 + Math.cos(t)*Math.cos(t));
+                ty = cy + Math.sin(t)*Math.cos(t)*160 / (1 + Math.cos(t)*Math.cos(t));
+            } else if(currentType === 'saturn'){
+                if(this.isRing){
+                    const angle = this.ringAngle + time*0.5;
+                    tx = cx + Math.cos(angle)*this.ringRadius;
+                    ty = cy + Math.sin(angle)*(this.ringRadius*0.3);
+                }
+            } else if(currentType === 'fluid'){
+                const angle = Math.atan2(this.by, this.bx) + Math.sin(time + this.colorFactor*5)*0.3;
+                const r = Math.sqrt(this.bx*this.bx + this.by*this.by) * (1 + Math.sin(time*2 + this.colorFactor*10)*0.15);
+                tx = cx + Math.cos(angle)*r;
+                ty = cy + Math.sin(angle)*r;
+            }
+
+            // Mouse Lens / Magnetic Repulsion
+            const dx = this.x - mouseX;
+            const dy = this.y - mouseY;
+            const dist = Math.sqrt(dx*dx + dy*dy);
+            const lensRadius = 100;
+
+            let forceX = 0, forceY = 0;
+            this.hoverFactor = 0;
+
+            if(dist < lensRadius){
+                const normDist = dist / lensRadius;
+                this.hoverFactor = 1 - normDist;
+                const push = Math.sin(normDist * Math.PI) * 30;
+                const angle = Math.atan2(dy, dx);
+                forceX = Math.cos(angle) * push;
+                forceY = Math.sin(angle) * push;
+            }
+
+            this.x += (tx + forceX - this.x) * 0.14;
+            this.y += (ty + forceY - this.y) * 0.14;
+            this.pulse += this.speed;
+        }
+
+        draw(){
+            const hf = this.hoverFactor || 0;
+            const s = (this.size + Math.sin(this.pulse)*0.4) * (1 + hf * 0.8);
+            const alpha = Math.min(1, 0.6 + Math.sin(this.pulse)*0.2 + hf * 0.4);
+
+            ctx.save();
+            ctx.globalAlpha = alpha;
+
+            // Dynamic Palette
+            let r, g, b;
+            if(currentType === 'infinity'){
+                r = Math.floor(0 + hf*255); g = Math.floor(240 - hf*100); b = 255;
+            } else if(currentType === 'saturn'){
+                r = 255; g = Math.floor(180 + hf*75); b = Math.floor(50 + hf*200);
+            } else if(currentType === 'diamond'){
+                r = Math.floor(150 + hf*105); g = 0; b = 255;
+            } else {
+                r = Math.floor(255 - hf*200); g = Math.floor(0 + hf*255); b = 180;
+            }
+
+            if(hf > 0.05){
+                ctx.shadowBlur = 14 + hf * 18;
+                ctx.shadowColor = `rgba(${r},${g},${b},1)`;
+                ctx.fillStyle = `rgba(${r},${g},${b},1)`;
+            } else {
+                ctx.shadowBlur = 6;
+                ctx.shadowColor = `rgba(${r},${g},${b},0.6)`;
+                ctx.fillStyle = `rgba(${r},${g},${b},0.85)`;
+            }
+
+            ctx.beginPath();
+            ctx.arc(this.x, this.y, s, 0, Math.PI*2);
+            ctx.fill();
+
+            ctx.fillStyle = `rgba(255,255,255,${alpha * (0.4 + hf*0.5)})`;
+            ctx.beginPath();
+            ctx.arc(this.x, this.y, s * 0.35, 0, Math.PI*2);
+            ctx.fill();
+            ctx.restore();
+        }
+    }
+
+    function initDots(){
+        dots = [];
+        const cx = canvas.width / 2;
+        const cy = canvas.height / 2;
+
+        if(currentType === 'infinity'){
+            for(let i=0; i<320; i++){
+                dots.push(new Dot(i, i, i/320));
+            }
+        } else if(currentType === 'saturn'){
+            // Planet Sphere
+            for(let i=0; i<200; i++){
+                const a = Math.random()*Math.PI*2;
+                const r = Math.pow(Math.random(), 0.8)*60;
+                dots.push(new Dot(Math.cos(a)*r, Math.sin(a)*r, 0.2));
+            }
+            // Ring
+            for(let i=0; i<240; i++){
+                const d = new Dot(0, 0, 0.8);
+                d.isRing = true;
+                d.ringAngle = (i/240)*Math.PI*2;
+                d.ringRadius = 90 + (Math.random()-0.5)*30;
+                dots.push(d);
+            }
+        } else if(currentType === 'diamond'){
+            // Diamond Shape
+            const size = 130;
+            for(let i=0; i<300; i++){
+                const t = Math.random();
+                let x, y;
+                const side = Math.floor(Math.random()*4);
+                if(side===0){ x = (1-t)*0 + t*size; y = (1-t)*(-size) + t*0; }
+                else if(side===1){ x = (1-t)*size + t*0; y = (1-t)*0 + t*size; }
+                else if(side===2){ x = (1-t)*0 + t*(-size); y = (1-t)*size + t*0; }
+                else { x = (1-t)*(-size) + t*0; y = (1-t)*0 + t*(-size); }
+
+                // Inner fill
+                const scale = Math.random();
+                dots.push(new Dot(x*scale, y*scale, scale));
+            }
+        } else if(currentType === 'fluid'){
+            // Cyber Mandala
+            for(let ring=1; ring<=5; ring++){
+                const count = ring * 50;
+                const radius = ring * 32;
+                for(let i=0; i<count; i++){
+                    const a = (i/count)*Math.PI*2;
+                    dots.push(new Dot(Math.cos(a)*radius, Math.sin(a)*radius, ring/5));
+                }
+            }
+        }
+
+        dots.forEach(d => { d.x = cx + d.bx; d.y = cy + d.by; });
+    }
+
+    function animate(){
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        globalTime += 0.015;
+
+        const cx = canvas.width / 2;
+        const cy = canvas.height / 2;
+
+        // Spotlight Beam
+        ctx.save();
+        const grad = ctx.createRadialGradient(mouse.x, mouse.y, 5, mouse.x, mouse.y, 100);
+        grad.addColorStop(0, 'rgba(0, 240, 255, 0.2)');
+        grad.addColorStop(0.5, 'rgba(255, 0, 127, 0.1)');
+        grad.addColorStop(1, 'rgba(0, 0, 0, 0)');
+        ctx.fillStyle = grad;
+        ctx.beginPath();
+        ctx.arc(mouse.x, mouse.y, 100, 0, Math.PI*2);
+        ctx.fill();
+        ctx.restore();
+
+        dots.forEach(d => {
+            d.update(cx, cy, mouse.x, mouse.y, globalTime);
+            d.draw();
+        });
+
+        requestAnimationFrame(animate);
+    }
+
+    function switchVisualizer(type){
+        currentType = type;
+        document.querySelectorAll('.btn').forEach(b => b.classList.remove('active'));
+        event.target.classList.add('active');
+
+        if(type === 'infinity'){
+            infoTitle.textContent = "INFINITY LOOP ♾️";
+            infoDesc.textContent = "Flowing kinetic dual-loop particle vortex with magnetic distortion";
+        } else if(type === 'saturn'){
+            infoTitle.textContent = "COSMIC SATURN 🪐";
+            infoDesc.textContent = "Rotating planetary ring cluster with stellar particle core";
+        } else if(type === 'diamond'){
+            infoTitle.textContent = "GLOWING DIAMOND 💎";
+            infoDesc.textContent = "Crystalline laser lattice structure with spotlight illumination";
+        } else if(type === 'fluid'){
+            infoTitle.textContent = "CYBER MANDALA ☸️";
+            infoDesc.textContent = "Pulsating concentric energy rings with wave dynamics";
+        }
+
+        initDots();
+    }
+
+    canvas.parentElement.addEventListener('mousemove', (e) => {
+        const rect = canvas.getBoundingClientRect();
+        mouse.x = e.clientX - rect.left;
+        mouse.y = e.clientY - rect.top;
+    });
+
+    document.addEventListener('mousemove', (e) => {
+        const rect = canvas.getBoundingClientRect();
+        if(e.clientX >= rect.left && e.clientX <= rect.right &&
+           e.clientY >= rect.top && e.clientY <= rect.bottom){
+            mouse.x = e.clientX - rect.left;
+            mouse.y = e.clientY - rect.top;
+        } else {
+            mouse.x = -1000;
+            mouse.y = -1000;
+        }
+    });
+
+    resize();
+    animate();
+    </script>
+</body>
+</html>

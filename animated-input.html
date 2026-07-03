@@ -1,0 +1,265 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Animated Glowing Input</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;700;900&display=swap" rel="stylesheet">
+    <style>
+        *{margin:0;padding:0;box-sizing:border-box}
+        body{min-height:100vh;display:flex;align-items:center;justify-content:center;background:#06060a;font-family:'Inter',sans-serif;overflow:hidden}
+        .container{position:relative;width:100%;max-width:520px;padding:40px;z-index:1;display:flex;flex-direction:column;align-items:center}
+        #particleCanvas{position:fixed;top:0;left:0;width:100%;height:100%;pointer-events:none;z-index:10}
+        
+        .display-area{position:relative;width:100%;height:320px;margin-bottom:20px;display:flex;align-items:center;justify-content:center}
+        
+        .input-wrapper{position:relative;width:100%;max-width:380px}
+        .glow-border{position:relative;border-radius:24px;padding:2px;background:rgba(255,255,255,0.1);transition:all 0.3s ease}
+        .glow-border.active{background:rgba(255,255,255,0.2)}
+        .animated-input{width:100%;padding:14px 20px;font-size:16px;font-family:'Inter',sans-serif;font-weight:400;letter-spacing:1px;color:#fff;background:rgba(20,20,28,0.9);border:1px solid rgba(255,255,255,0.1);border-radius:22px;outline:none;caret-color:#ff3278;text-align:center}
+        .animated-input::placeholder{color:rgba(255,255,255,0.25)}
+    </style>
+</head>
+<body>
+    <a href="index.html" style="position:fixed; top:20px; left:20px; z-index:100; text-decoration:none; padding:10px 18px; background:rgba(255,50,120,0.25); border:1px solid #ff3278; color:#fff; border-radius:20px; font-size:13px; font-weight:700; letter-spacing:1px; backdrop-filter:blur(10px); transition:all 0.3s ease;" onmouseover="this.style.background='rgba(255,50,120,0.45)'" onmouseout="this.style.background='rgba(255,50,120,0.25)'">← BACK TO HUB</a>
+    <canvas id="particleCanvas"></canvas>
+    <div class="container">
+        <div class="display-area" id="displayArea"></div>
+        <div class="input-wrapper">
+            <div class="glow-border" id="glowBorder">
+                <input type="text" class="animated-input" id="magicInput" autocomplete="off" spellcheck="false" placeholder="axtarget"/>
+            </div>
+        </div>
+    </div>
+
+    <script>
+    const canvas = document.getElementById('particleCanvas');
+    const ctx = canvas.getContext('2d');
+    const input = document.getElementById('magicInput');
+    const glowBorder = document.getElementById('glowBorder');
+    const displayArea = document.getElementById('displayArea');
+
+    let particles = [];
+    let heartDots = [];
+    let textDots = [];
+    let currentText = '';
+    let mouse = {x: -1000, y: -1000};
+    let isHoveringDisplay = false;
+    let mode = 'heart';
+
+    function resizeCanvas(){
+        canvas.width = window.innerWidth;
+        canvas.height = window.innerHeight;
+    }
+    resizeCanvas();
+    window.addEventListener('resize', resizeCanvas);
+
+    function heartX(t){ return 16 * Math.pow(Math.sin(t), 3); }
+    function heartY(t){ return -(13*Math.cos(t) - 5*Math.cos(2*t) - 2*Math.cos(3*t) - Math.cos(4*t)); }
+
+    class Dot {
+        constructor(baseX, baseY, initX, initY, isInterior=false){
+            this.baseX = baseX;
+            this.baseY = baseY;
+            this.x = initX !== undefined ? initX : baseX;
+            this.y = initY !== undefined ? initY : baseY;
+            this.vx = 0;
+            this.vy = 0;
+            this.size = Math.random()*1.8 + 0.8;
+            this.pulse = Math.random()*Math.PI*2;
+            this.speed = 0.02 + Math.random()*0.03;
+            this.isInterior = isInterior;
+        }
+
+        update(cx, cy, mouseX, mouseY){
+            const targetX = cx + this.baseX;
+            const targetY = cy + this.baseY;
+
+            // Distance directly from particle current screen position to mouse cursor
+            const dx = this.x - mouseX;
+            const dy = this.y - mouseY;
+            const dist = Math.sqrt(dx*dx + dy*dy);
+            const lensRadius = 90;
+
+            let forceX = 0, forceY = 0;
+            this.hoverFactor = 0; // Highlight brightness factor
+
+            if(dist < lensRadius){
+                const normDist = dist / lensRadius;
+                this.hoverFactor = 1 - normDist; // Smooth 0 to 1 intensity
+                const bulge = Math.sin(normDist * Math.PI) * 22;
+                const angle = Math.atan2(dy, dx);
+                
+                forceX = Math.cos(angle) * bulge;
+                forceY = Math.sin(angle) * bulge;
+            }
+
+            const destX = targetX + forceX;
+            const destY = targetY + forceY;
+
+            this.x += (destX - this.x) * 0.15;
+            this.y += (destY - this.y) * 0.15;
+            this.pulse += this.speed;
+        }
+
+        draw(){
+            const hf = this.hoverFactor || 0;
+            const s = (this.size + Math.sin(this.pulse)*0.4) * (1 + hf * 0.7);
+            const alpha = Math.min(1, 0.65 + Math.sin(this.pulse)*0.2 + hf * 0.35);
+
+            ctx.save();
+            ctx.globalAlpha = alpha;
+
+            if(hf > 0.1){
+                // Spotlight / Flashlight beam highlight effect (White & Bright Pink)
+                ctx.shadowBlur = 12 + hf * 15;
+                ctx.shadowColor = `rgba(255, 200, 230, ${hf})`;
+                ctx.fillStyle = `rgba(255, ${Math.floor(80 + hf*175)}, ${Math.floor(150 + hf*105)}, 1)`;
+            } else {
+                ctx.shadowBlur = 6;
+                ctx.shadowColor = 'rgba(255, 50, 120, 0.6)';
+                ctx.fillStyle = `rgba(255, ${60 + Math.floor(Math.sin(this.pulse)*40)}, ${130 + Math.floor(Math.cos(this.pulse)*40)}, 1)`;
+            }
+
+            ctx.beginPath();
+            ctx.arc(this.x, this.y, s, 0, Math.PI*2);
+            ctx.fill();
+
+            // Core brightness
+            ctx.fillStyle = `rgba(255, 255, 255, ${alpha * (0.35 + hf * 0.55)})`;
+            ctx.beginPath();
+            ctx.arc(this.x, this.y, s * 0.4, 0, Math.PI*2);
+            ctx.fill();
+            ctx.restore();
+        }
+    }
+
+    function getCenter(){
+        const rect = displayArea.getBoundingClientRect();
+        return { cx: rect.left + rect.width/2, cy: rect.top + rect.height/2 };
+    }
+
+    function buildHeart(){
+        heartDots = [];
+        const { cx, cy } = getCenter();
+        const scale = 7.5;
+        // Outline
+        for(let i=0; i<180; i++){
+            const t = (i/180)*Math.PI*2;
+            const bx = heartX(t)*scale;
+            const by = heartY(t)*scale;
+            heartDots.push(new Dot(bx, by, cx + bx, cy + by, false));
+        }
+        // Interior filling
+        for(let sc=scale-0.6; sc>0.5; sc-=0.7){
+            const count = Math.floor(sc * 20);
+            for(let i=0; i<count; i++){
+                const t = (i/count)*Math.PI*2;
+                const bx = heartX(t)*sc + (Math.random()-0.5)*3;
+                const by = heartY(t)*sc + (Math.random()-0.5)*3;
+                heartDots.push(new Dot(bx, by, cx + bx, cy + by, true));
+            }
+        }
+    }
+    buildHeart();
+
+    const offCanvas = document.createElement('canvas');
+    const offCtx = offCanvas.getContext('2d');
+    offCanvas.width = 800;
+    offCanvas.height = 300;
+
+    function generateTextDots(text){
+        textDots = [];
+        if(!text) return;
+        offCtx.clearRect(0,0,800,300);
+
+        let fontSize = Math.min(100, Math.max(45, 650/text.length));
+        offCtx.font = `900 ${fontSize}px Inter, sans-serif`;
+        offCtx.fillStyle = '#fff';
+        offCtx.textAlign = 'center';
+        offCtx.textBaseline = 'middle';
+        offCtx.fillText(text, 400, 150);
+
+        const imageData = offCtx.getImageData(0, 0, 800, 300);
+        const data = imageData.data;
+        const step = 3; 
+        const { cx, cy } = getCenter();
+
+        for(let y=0; y<300; y+=step){
+            for(let x=0; x<800; x+=step){
+                const i = (y*800+x)*4;
+                if(data[i+3] > 128){
+                    const bx = x - 400;
+                    const by = y - 150;
+                    textDots.push(new Dot(bx, by, cx + bx, cy + by));
+                }
+            }
+        }
+    }
+
+    function animate(){
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+        const rect = displayArea.getBoundingClientRect();
+        const cx = rect.left + rect.width/2;
+        const cy = rect.top + rect.height/2;
+
+        // Draw Spotlight / Light Beam Lens Effect under cursor when hovering
+        if(isHoveringDisplay){
+            ctx.save();
+            const grad = ctx.createRadialGradient(mouse.x, mouse.y, 5, mouse.x, mouse.y, 90);
+            grad.addColorStop(0, 'rgba(255, 180, 220, 0.22)');
+            grad.addColorStop(0.5, 'rgba(255, 80, 160, 0.1)');
+            grad.addColorStop(1, 'rgba(255, 50, 120, 0)');
+            ctx.fillStyle = grad;
+            ctx.beginPath();
+            ctx.arc(mouse.x, mouse.y, 90, 0, Math.PI*2);
+            ctx.fill();
+            ctx.restore();
+        }
+
+        if(mode === 'heart'){
+            heartDots.forEach(d => {
+                d.update(cx, cy, mouse.x, mouse.y);
+                d.draw();
+            });
+        } else {
+            textDots.forEach(d => {
+                d.update(cx, cy, mouse.x, mouse.y);
+                d.draw();
+            });
+        }
+
+        requestAnimationFrame(animate);
+    }
+    animate();
+
+    document.addEventListener('mousemove', (e) => {
+        mouse.x = e.clientX;
+        mouse.y = e.clientY;
+
+        const rect = displayArea.getBoundingClientRect();
+        if(e.clientX >= rect.left && e.clientX <= rect.right &&
+           e.clientY >= rect.top && e.clientY <= rect.bottom){
+            isHoveringDisplay = true;
+        } else {
+            isHoveringDisplay = false;
+        }
+    });
+
+    input.addEventListener('focus', () => { glowBorder.classList.add('active'); });
+    input.addEventListener('blur', () => { glowBorder.classList.remove('active'); });
+
+    input.addEventListener('input', () => {
+        currentText = input.value;
+        if(currentText.trim().length > 0){
+            mode = 'text';
+            generateTextDots(currentText);
+        } else {
+            mode = 'heart';
+            textDots = [];
+        }
+    });
+    </script>
+</body>
+</html>

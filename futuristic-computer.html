@@ -1,0 +1,1638 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Futuristic 3D Workstation Experience</title>
+    <!-- Modern Typography -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link
+        href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;600&family=Orbitron:wght@400;600;800;900&family=Outfit:wght@300;400;600;800&display=swap"
+        rel="stylesheet">
+
+    <!-- External Libraries via CDN -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/gsap.min.js"></script>
+
+    <!-- AI MediaPipe Hands & Camera Utils for Touchless Air Hand Gesture Tracking -->
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js" crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.js" crossorigin="anonymous"></script>
+
+    <style>
+        :root {
+            --primary: #00f0ff;
+            --secondary: #ff007f;
+            --accent: #7000ff;
+            --bg-dark: #030408;
+            --glass-bg: rgba(8, 14, 28, 0.82);
+            --glass-border: rgba(0, 240, 255, 0.35);
+            --text-main: #e2f1ff;
+            --font-main: 'Outfit', sans-serif;
+            --font-tech: 'Orbitron', sans-serif;
+            --font-code: 'Fira Code', monospace;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            user-select: none;
+        }
+
+        body,
+        html {
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            background-color: var(--bg-dark);
+            font-family: var(--font-main);
+            color: var(--text-main);
+        }
+
+        /* Canvas Container */
+        #webgl-container {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 1;
+        }
+
+        /* 2D Offscreen Canvas for Screen Texture rendering (hidden) */
+        #screen-canvas {
+            display: none;
+        }
+
+        /* Overlay Cyber Grid & Vignette */
+        .overlay-vignette {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 2;
+            pointer-events: none;
+            background:
+                radial-gradient(circle at center, transparent 45%, rgba(2, 3, 8, 0.88) 100%),
+                linear-gradient(rgba(0, 240, 255, 0.015) 50%, rgba(0, 0, 0, 0.25) 50%);
+            background-size: 100% 100%, 100% 4px;
+        }
+
+        /* Start / Boot Screen Overlay */
+        #boot-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 100;
+            background: radial-gradient(circle at center, #0c1222 0%, #020307 100%);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            transition: opacity 1.2s cubic-bezier(0.19, 1, 0.22, 1), visibility 1.2s;
+        }
+
+        #boot-overlay.hidden {
+            opacity: 0;
+            visibility: hidden;
+            pointer-events: none;
+        }
+
+        .boot-card {
+            background: rgba(12, 22, 42, 0.75);
+            border: 1px solid rgba(0, 240, 255, 0.4);
+            border-radius: 24px;
+            padding: 50px 65px;
+            text-align: center;
+            backdrop-filter: blur(24px);
+            box-shadow: 0 0 60px rgba(0, 240, 255, 0.2), inset 0 0 35px rgba(0, 240, 255, 0.08);
+            max-width: 580px;
+            width: 90%;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .boot-card::before {
+            content: '';
+            position: absolute;
+            top: -50%;
+            left: -50%;
+            width: 200%;
+            height: 200%;
+            background: linear-gradient(45deg, transparent, rgba(0, 240, 255, 0.12), transparent);
+            transform: rotate(45deg);
+            animation: bootGlow 4s infinite linear;
+        }
+
+        @keyframes bootGlow {
+            0% {
+                transform: translateY(-100%) rotate(45deg);
+            }
+
+            100% {
+                transform: translateY(100%) rotate(45deg);
+            }
+        }
+
+        .logo-title {
+            font-family: var(--font-tech);
+            font-size: 2.6rem;
+            font-weight: 900;
+            letter-spacing: 5px;
+            color: #fff;
+            text-shadow: 0 0 25px var(--primary);
+            margin-bottom: 8px;
+        }
+
+        .logo-sub {
+            font-size: 0.9rem;
+            color: var(--primary);
+            letter-spacing: 6px;
+            text-transform: uppercase;
+            margin-bottom: 35px;
+            font-weight: 600;
+        }
+
+        .boot-btn {
+            background: linear-gradient(135deg, rgba(0, 240, 255, 0.25), rgba(112, 0, 255, 0.45));
+            border: 1px solid var(--primary);
+            color: #fff;
+            padding: 18px 45px;
+            font-family: var(--font-tech);
+            font-size: 1.05rem;
+            font-weight: 700;
+            letter-spacing: 3px;
+            border-radius: 30px;
+            cursor: pointer;
+            position: relative;
+            overflow: hidden;
+            transition: all 0.3s ease;
+            box-shadow: 0 0 30px rgba(0, 240, 255, 0.35);
+        }
+
+        .boot-btn:hover {
+            background: linear-gradient(135deg, rgba(0, 240, 255, 0.7), rgba(255, 0, 127, 0.7));
+            box-shadow: 0 0 50px rgba(0, 240, 255, 0.7), 0 0 90px rgba(255, 0, 127, 0.5);
+            transform: translateY(-2px) scale(1.03);
+        }
+
+        /* Top Cyber Header UI */
+        .cyber-header {
+            position: absolute;
+            top: 25px;
+            left: 30px;
+            right: 30px;
+            z-index: 10;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            pointer-events: none;
+            opacity: 0;
+            transition: opacity 1s ease 1s;
+        }
+
+        .cyber-header.active {
+            opacity: 1;
+            pointer-events: auto;
+        }
+
+        .header-title-box {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+
+        .sys-badge {
+            background: rgba(0, 240, 255, 0.12);
+            border: 1px solid var(--primary);
+            padding: 6px 14px;
+            border-radius: 8px;
+            font-family: var(--font-tech);
+            font-size: 0.8rem;
+            color: var(--primary);
+            letter-spacing: 2px;
+            box-shadow: 0 0 15px rgba(0, 240, 255, 0.25);
+        }
+
+        .header-clock {
+            font-family: var(--font-code);
+            font-size: 0.95rem;
+            color: rgba(255, 255, 255, 0.85);
+            letter-spacing: 1px;
+        }
+
+        /* VERTICAL SIDE FLOATING INTERACTIVE CONTROL PANEL (LEFT SIDE) */
+        .cyber-dock {
+            position: absolute;
+            left: 25px;
+            top: 52%;
+            transform: translateY(-50%);
+            z-index: 10;
+            background: var(--glass-bg);
+            border: 1px solid var(--glass-border);
+            border-radius: 24px;
+            padding: 16px 12px;
+            display: flex;
+            flex-direction: column;
+            align-items: stretch;
+            gap: 10px;
+            backdrop-filter: blur(18px);
+            box-shadow: 0 15px 35px rgba(0, 0, 0, 0.6), 0 0 30px rgba(0, 240, 255, 0.2);
+            opacity: 0;
+            width: 170px;
+            transition: opacity 1s ease 1.2s, transform 0.3s ease;
+        }
+
+        .cyber-dock.active {
+            opacity: 1;
+        }
+
+        .dock-btn {
+            background: rgba(255, 255, 255, 0.06);
+            border: 1px solid rgba(255, 255, 255, 0.18);
+            color: #fff;
+            padding: 11px 14px;
+            border-radius: 14px;
+            font-size: 0.78rem;
+            font-family: var(--font-tech);
+            letter-spacing: 1.2px;
+            cursor: pointer;
+            transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            width: 100%;
+            justify-content: flex-start;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .dock-btn:hover,
+        .dock-btn.hover-active {
+            background: rgba(0, 240, 255, 0.3);
+            border-color: var(--primary);
+            color: #fff;
+            box-shadow: 0 0 20px rgba(0, 240, 255, 0.6);
+            transform: translateX(4px);
+        }
+
+        .dock-btn.active-preset {
+            background: linear-gradient(135deg, var(--primary), var(--accent));
+            border-color: #fff;
+            box-shadow: 0 0 25px var(--primary);
+        }
+
+        .dock-separator {
+            width: 100%;
+            height: 1px;
+            background: rgba(255, 255, 255, 0.2);
+            margin: 2px 0;
+        }
+
+        /* Component Hover Info Tooltip */
+        #info-tooltip {
+            position: absolute;
+            z-index: 20;
+            pointer-events: none;
+            background: rgba(6, 12, 24, 0.92);
+            border: 1px solid var(--primary);
+            border-radius: 12px;
+            padding: 12px 18px;
+            backdrop-filter: blur(14px);
+            box-shadow: 0 0 25px rgba(0, 240, 255, 0.35);
+            opacity: 0;
+            transform: translate(-50%, -120%) scale(0.9);
+            transition: opacity 0.25s ease, transform 0.25s ease;
+        }
+
+        #info-tooltip.visible {
+            opacity: 1;
+            transform: translate(-50%, -120%) scale(1);
+        }
+
+        .tooltip-title {
+            font-family: var(--font-tech);
+            font-size: 0.9rem;
+            color: var(--primary);
+            letter-spacing: 1.5px;
+            font-weight: 700;
+            margin-bottom: 2px;
+        }
+
+        .tooltip-desc {
+            font-size: 0.78rem;
+            color: rgba(255, 255, 255, 0.88);
+            font-weight: 400;
+        }
+
+        /* AI WEBCAM HAND TRACKING OVERLAY UI */
+        #webcam-container {
+            position: absolute;
+            top: 25px;
+            right: 30px;
+            width: 210px;
+            height: 155px;
+            background: rgba(4, 8, 18, 0.85);
+            border: 1px solid var(--primary);
+            border-radius: 16px;
+            overflow: hidden;
+            z-index: 25;
+            box-shadow: 0 0 25px rgba(0, 240, 255, 0.3);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            backdrop-filter: blur(12px);
+        }
+
+        #webcam-video {
+            display: none;
+        }
+
+        #webcam-canvas {
+            width: 100%;
+            height: 125px;
+            object-fit: cover;
+            transform: scaleX(-1);
+            background: #000;
+        }
+
+        .webcam-status {
+            font-family: var(--font-tech);
+            font-size: 0.65rem;
+            color: var(--primary);
+            padding: 4px 8px;
+            letter-spacing: 1px;
+            text-align: center;
+            width: 100%;
+            background: rgba(0, 240, 255, 0.1);
+        }
+
+        /* Floating Cyber Hand Cursor with Radial Hover-Dwell Timer Ring */
+        #hand-cursor {
+            position: absolute;
+            width: 34px;
+            height: 34px;
+            border: 2px solid var(--primary);
+            border-radius: 50%;
+            pointer-events: none;
+            z-index: 30;
+            transform: translate(-50%, -50%);
+            box-shadow: 0 0 20px var(--primary);
+            display: block;
+            transition: width 0.15s ease, height 0.15s ease, border-color 0.15s ease;
+        }
+
+        #hand-cursor::after {
+            content: '';
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            width: 6px;
+            height: 6px;
+            background: var(--primary);
+            border-radius: 50%;
+            transform: translate(-50%, -50%);
+        }
+
+        /* Radial Progress Ring for Auto Hover Click */
+        #hand-progress-ring {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            width: 48px;
+            height: 48px;
+            border: 3px solid transparent;
+            border-top-color: var(--secondary);
+            border-right-color: var(--secondary);
+            border-radius: 50%;
+            transform: translate(-50%, -50%) rotate(0deg);
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.2s ease;
+        }
+
+        #hand-progress-ring.active {
+            opacity: 1;
+            animation: ringSpin 0.7s linear forwards;
+        }
+
+        @keyframes ringSpin {
+            0% {
+                transform: translate(-50%, -50%) rotate(0deg);
+            }
+
+            100% {
+                transform: translate(-50%, -50%) rotate(360deg);
+            }
+        }
+
+        #hand-cursor.pinched {
+            width: 18px;
+            height: 18px;
+            border-color: var(--secondary);
+            background: rgba(255, 0, 127, 0.3);
+            box-shadow: 0 0 25px var(--secondary);
+        }
+
+        /* Responsive UI Adjustments */
+        @media (max-width: 768px) {
+            .cyber-dock {
+                top: auto;
+                bottom: 20px;
+                left: 50%;
+                transform: translateX(-50%);
+                width: 92%;
+                flex-direction: row;
+                overflow-x: auto;
+                padding: 10px 16px;
+                border-radius: 20px;
+            }
+
+            .boot-card {
+                padding: 35px 25px;
+            }
+
+            .logo-title {
+                font-size: 1.8rem;
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <!-- 3D WebGL Canvas -->
+    <div id="webgl-container"></div>
+
+    <!-- Hidden 2D Canvas for Rendering Dynamic 60FPS Screen UI -->
+    <canvas id="screen-canvas" width="1024" height="640"></canvas>
+
+    <!-- Overlay Scanline & Vignette Effect -->
+    <div class="overlay-vignette"></div>
+
+    <!-- Initial System Boot Overlay -->
+    <div id="boot-overlay">
+        <div class="boot-card">
+            <div class="logo-title">NEXUS-9000</div>
+            <div class="logo-sub">QUANTUM NEURAL WORKSTATION</div>
+            <button class="boot-btn" id="start-btn">INITIALIZE SYSTEM</button>
+        </div>
+    </div>
+
+    <!-- Cyber Header Bar -->
+    <div class="cyber-header" id="cyber-header">
+        <div class="header-title-box">
+            <a href="index.html" class="sys-badge"
+                style="text-decoration: none; display: inline-flex; align-items: center; gap: 4px; background: rgba(0, 240, 255, 0.25); color: #fff; cursor: pointer;">←
+                BACK TO HUB</a>
+            <div class="sys-badge">SYS: ONLINE</div>
+            <div class="sys-badge" id="temp-badge" style="border-color: var(--secondary); color: var(--secondary);">CORE
+                TEMP: 34°C</div>
+        </div>
+        <div class="header-clock" id="live-clock">00:00:00 UTC</div>
+    </div>
+
+    <!-- AI Webcam Hand Tracking HUD Feed Overlay -->
+    <div id="webcam-container">
+        <video id="webcam-video" playsinline></video>
+        <canvas id="webcam-canvas" width="320" height="240"></canvas>
+        <div class="webcam-status" id="hand-status">AIR GESTURE: READY</div>
+    </div>
+
+    <!-- Floating Cybernetic Hand Pointer Cursor with Auto Hover Dwell Ring -->
+    <div id="hand-cursor">
+        <div id="hand-progress-ring"></div>
+    </div>
+
+    <!-- Component Tooltip Overlay -->
+    <div id="info-tooltip">
+        <div class="tooltip-title" id="tt-title">COMPONENT</div>
+        <div class="tooltip-desc" id="tt-desc">Description text...</div>
+    </div>
+
+    <!-- Vertical Side Floating Interactive Control Dock (Left Side) -->
+    <div class="cyber-dock" id="cyber-dock">
+        <button class="dock-btn active-preset" data-view="overview">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7" />
+            </svg>
+            CINEMATIC
+        </button>
+        <button class="dock-btn" data-view="screen">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <rect x="2" y="3" width="20" height="14" rx="2" />
+                <line x1="8" y1="21" x2="16" y2="21" />
+                <line x1="12" y1="17" x2="12" y2="21" />
+            </svg>
+            MONITOR
+        </button>
+        <button class="dock-btn" data-view="tower">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <rect x="4" y="2" width="16" height="20" rx="2" />
+                <line x1="12" y1="6" x2="12.01" y2="6" />
+                <line x1="12" y1="18" x2="12.01" y2="18" />
+            </svg>
+            CPU CORE
+        </button>
+        <button class="dock-btn" data-view="keyboard">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <rect x="2" y="6" width="20" height="12" rx="2" />
+                <path d="M6 10h.01M10 10h.01M14 10h.01M18 10h.01M8 14h8" />
+            </svg>
+            KEYBOARD
+        </button>
+
+        <div class="dock-separator"></div>
+
+        <button class="dock-btn" id="theme-btn">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <circle cx="12" cy="12" r="10" />
+                <path d="M12 2a7 7 0 0 0 0 14 7 7 0 0 0 0-14z" />
+            </svg>
+            THEME
+        </button>
+        <button class="dock-btn" id="overclock-btn">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2" />
+            </svg>
+            OVERCLOCK
+        </button>
+        <button class="dock-btn" id="audio-btn">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5" />
+                <path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07" />
+            </svg>
+            SFX
+        </button>
+    </div>
+
+    <!-- JavaScript Master Script -->
+    <script>
+        /* ====================================================================
+         * 1. GLOBAL STATE & THEMES CONFIGURATION
+         * ==================================================================== */
+        const STATE = {
+            initialized: false,
+            overclock: false,
+            soundEnabled: true,
+            themeIndex: 0,
+            currentView: 'overview',
+            hoveredObject: null,
+            time: 0,
+            handTrackingActive: true,
+            isPinching: false,
+            lastGestureTime: 0
+        };
+
+        const THEMES = [
+            { name: "CYBERPUNK", primary: 0x00f0ff, secondary: 0xff007f, accent: 0x7000ff, primaryCss: "#00f0ff", secondaryCss: "#ff007f" },
+            { name: "SOLARIS", primary: 0xffaa00, secondary: 0xff3300, accent: 0xffee00, primaryCss: "#ffaa00", secondaryCss: "#ff3300" },
+            { name: "MATRIX", primary: 0x00ff66, secondary: 0x008844, accent: 0xccff00, primaryCss: "#00ff66", secondaryCss: "#008844" },
+            { name: "NEBULA", primary: 0x9d00ff, secondary: 0x0066ff, accent: 0xff00cc, primaryCss: "#9d00ff", secondaryCss: "#0066ff" },
+            { name: "ICE STEALTH", primary: 0x70d6ff, secondary: 0xffffff, accent: 0x0044ff, primaryCss: "#70d6ff", secondaryCss: "#ffffff" }
+        ];
+
+        function getActiveTheme() { return THEMES[STATE.themeIndex]; }
+
+        /* ====================================================================
+         * 2. SYNTHETIC WEB AUDIO SFX SYSTEM
+         * ==================================================================== */
+        class SoundSystem {
+            constructor() {
+                this.ctx = null;
+            }
+
+            init() {
+                if (!this.ctx) {
+                    const AudioCtx = window.AudioContext || window.webkitAudioContext;
+                    this.ctx = new AudioCtx();
+                }
+                if (this.ctx.state === 'suspended') {
+                    this.ctx.resume();
+                }
+            }
+
+            playTone(freq, duration, type = 'sine', gainVal = 0.1) {
+                if (!STATE.soundEnabled || !this.ctx) return;
+                try {
+                    const osc = this.ctx.createOscillator();
+                    const gain = this.ctx.createGain();
+                    osc.type = type;
+                    osc.frequency.setValueAtTime(freq, this.ctx.currentTime);
+                    gain.gain.setValueAtTime(gainVal, this.ctx.currentTime);
+                    gain.gain.exponentialRampToValueAtTime(0.0001, this.ctx.currentTime + duration);
+                    osc.connect(gain);
+                    gain.connect(this.ctx.destination);
+                    osc.start();
+                    osc.stop(this.ctx.currentTime + duration);
+                } catch (e) { }
+            }
+
+            playPowerUp() {
+                if (!STATE.soundEnabled || !this.ctx) return;
+                try {
+                    const osc = this.ctx.createOscillator();
+                    const gain = this.ctx.createGain();
+                    osc.type = 'sawtooth';
+                    osc.frequency.setValueAtTime(100, this.ctx.currentTime);
+                    osc.frequency.exponentialRampToValueAtTime(880, this.ctx.currentTime + 1.2);
+                    gain.gain.setValueAtTime(0.01, this.ctx.currentTime);
+                    gain.gain.linearRampToValueAtTime(0.15, this.ctx.currentTime + 0.6);
+                    gain.gain.exponentialRampToValueAtTime(0.001, this.ctx.currentTime + 1.4);
+                    osc.connect(gain);
+                    gain.connect(this.ctx.destination);
+                    osc.start();
+                    osc.stop(this.ctx.currentTime + 1.4);
+                } catch (e) { }
+            }
+
+            playClick() {
+                this.playTone(1200, 0.08, 'sine', 0.05);
+            }
+
+            playHover() {
+                this.playTone(600, 0.05, 'triangle', 0.03);
+            }
+
+            playOverclock() {
+                this.playTone(300, 0.4, 'sawtooth', 0.12);
+                setTimeout(() => this.playTone(900, 0.5, 'sine', 0.1), 150);
+            }
+        }
+        const sfx = new SoundSystem();
+
+        /* ====================================================================
+         * 3. 2D MONITOR SCREEN CANVAS ANIMATION ENGINE (60 FPS)
+         * ==================================================================== */
+        const screenCanvas = document.getElementById('screen-canvas');
+        const sCtx = screenCanvas.getContext('2d');
+
+        function updateScreenCanvas(time) {
+            const width = screenCanvas.width;
+            const height = screenCanvas.height;
+            const theme = getActiveTheme();
+
+            // Background Fill
+            sCtx.fillStyle = '#050914';
+            sCtx.fillRect(0, 0, width, height);
+
+            // Tech Grid
+            sCtx.strokeStyle = 'rgba(0, 240, 255, 0.08)';
+            sCtx.lineWidth = 1;
+            const gridSize = 32;
+            for (let x = 0; x < width; x += gridSize) {
+                sCtx.beginPath();
+                sCtx.moveTo(x, 0);
+                sCtx.lineTo(x, height);
+                sCtx.stroke();
+            }
+            for (let y = 0; y < height; y += gridSize) {
+                sCtx.beginPath();
+                sCtx.moveTo(0, y);
+                sCtx.lineTo(width, y);
+                sCtx.stroke();
+            }
+
+            // Top Header Bar
+            sCtx.fillStyle = 'rgba(0, 240, 255, 0.14)';
+            sCtx.fillRect(20, 20, width - 40, 48);
+            sCtx.strokeStyle = theme.primaryCss;
+            sCtx.lineWidth = 1.5;
+            sCtx.strokeRect(20, 20, width - 40, 48);
+
+            sCtx.font = '700 16px "Orbitron", sans-serif';
+            sCtx.fillStyle = '#ffffff';
+            sCtx.fillText("NEXUS OS // QUANTUM WORKSTATION v9.4", 38, 50);
+
+            const speedMultiplier = STATE.overclock ? 2.5 : 1.0;
+            sCtx.fillStyle = STATE.overclock ? '#ff0055' : theme.primaryCss;
+            sCtx.fillText(STATE.overclock ? "OVERCLOCK ACTIVE [4.2 GHz]" : "SYSTEM NOMINAL", width - 270, 50);
+
+            // Left Panel: Audio Visualizer Spectrum Bars
+            const visX = 30, visY = 90, visW = 310, visH = 220;
+            sCtx.fillStyle = 'rgba(8, 15, 30, 0.85)';
+            sCtx.fillRect(visX, visY, visW, visH);
+            sCtx.strokeStyle = 'rgba(255, 255, 255, 0.2)';
+            sCtx.strokeRect(visX, visY, visW, visH);
+
+            sCtx.font = '600 12px "Orbitron", sans-serif';
+            sCtx.fillStyle = theme.primaryCss;
+            sCtx.fillText("NEURAL AUDIO SPECTRUM", visX + 15, visY + 25);
+
+            const barCount = 20;
+            const barW = (visW - 40) / barCount;
+            for (let i = 0; i < barCount; i++) {
+                const bh = Math.abs(Math.sin(time * 3.5 * speedMultiplier + i * 0.4)) * 130 + 12;
+                const bx = visX + 20 + i * barW;
+                const by = visY + visH - 20 - bh;
+
+                const grad = sCtx.createLinearGradient(0, by, 0, by + bh);
+                grad.addColorStop(0, theme.secondaryCss);
+                grad.addColorStop(1, theme.primaryCss);
+
+                sCtx.fillStyle = grad;
+                sCtx.fillRect(bx, by, barW - 3, bh);
+            }
+
+            // Right Panel: 3D Animated Wireframe Globe/Orb Simulation on Canvas
+            const orbX = 500, orbY = 200, radius = 75;
+            sCtx.save();
+            sCtx.translate(orbX, orbY);
+            sCtx.strokeStyle = theme.primaryCss;
+            sCtx.lineWidth = 1.5;
+
+            const ringCount = 9;
+            for (let i = 0; i < ringCount; i++) {
+                const angle = time * (0.8 + i * 0.12) * speedMultiplier;
+                sCtx.beginPath();
+                sCtx.ellipse(0, 0, radius, radius * Math.abs(Math.sin(angle)), angle, 0, Math.PI * 2);
+                sCtx.stroke();
+            }
+            sCtx.restore();
+
+            sCtx.font = '600 12px "Orbitron", sans-serif';
+            sCtx.fillStyle = '#fff';
+            sCtx.textAlign = 'center';
+            sCtx.fillText("QUANTUM CORE MATRIX", orbX, orbY + radius + 32);
+            sCtx.textAlign = 'left';
+
+            // Bottom Panel: Live Code Data Stream & Telemetry Gauges
+            const codeX = 30, codeY = 330, codeW = 600, codeH = 280;
+            sCtx.fillStyle = 'rgba(4, 8, 18, 0.92)';
+            sCtx.fillRect(codeX, codeY, codeW, codeH);
+            sCtx.strokeStyle = 'rgba(0, 240, 255, 0.25)';
+            sCtx.strokeRect(codeX, codeY, codeW, codeH);
+
+            sCtx.font = '400 12px "Fira Code", monospace';
+            const lines = [
+                `> NEXUS_KERNEL::INITIALIZE(CoreCount=32, ThreadCount=64)`,
+                `> BUFFER_STREAM: OK [0x00FF892A] Latency: ${Math.floor((Math.sin(time * 5) + 1) * 2 + 1)}ms`,
+                `> AIR_GESTURE_HOVER_SELECT: ACTIVE [TOUCHLESS AUTO-SELECTION]`,
+                `> GPU_UTILIZATION: ${Math.floor((Math.sin(time * 2) + 1) * 20 + 55)}% | MEM: 18.4GB / 24GB`,
+                `> THERMAL_STATUS: NOMINAL (P-Cores: 42°C, E-Cores: 38°C)`,
+                `> LIVE_TELEMETRY: BROADCASTING AT 240 FPS...`
+            ];
+            lines.forEach((line, idx) => {
+                sCtx.fillStyle = idx === 0 ? theme.primaryCss : (idx % 2 === 0 ? '#ffffff' : 'rgba(255,255,255,0.65)');
+                sCtx.fillText(line, codeX + 15, codeY + 32 + idx * 38);
+            });
+
+            // Right Bottom Diagnostic Dial Dials
+            const dialCenterX = 790, dialCenterY = 460;
+            const dialRadius = 80;
+
+            sCtx.beginPath();
+            sCtx.arc(dialCenterX, dialCenterY, dialRadius, 0, Math.PI * 2);
+            sCtx.strokeStyle = 'rgba(255, 255, 255, 0.12)';
+            sCtx.lineWidth = 12;
+            sCtx.stroke();
+
+            const loadValue = (Math.sin(time * speedMultiplier * 1.5) + 1) / 2 * 0.6 + 0.35;
+            sCtx.beginPath();
+            sCtx.arc(dialCenterX, dialCenterY, dialRadius, -Math.PI / 2, -Math.PI / 2 + loadValue * Math.PI * 2);
+            sCtx.strokeStyle = STATE.overclock ? '#ff0055' : theme.primaryCss;
+            sCtx.lineWidth = 12;
+            sCtx.stroke();
+
+            sCtx.font = '700 24px "Orbitron", sans-serif';
+            sCtx.fillStyle = '#ffffff';
+            sCtx.textAlign = 'center';
+            sCtx.fillText(`${Math.floor(loadValue * 100)}%`, dialCenterX, dialCenterY + 8);
+            sCtx.font = '600 11px "Orbitron", sans-serif';
+            sCtx.fillStyle = theme.primaryCss;
+            sCtx.fillText("SYSTEM LOAD", dialCenterX, dialCenterY + 34);
+            sCtx.textAlign = 'left';
+        }
+
+        /* ====================================================================
+         * 4. THREE.JS 3D SCENE & GEOMETRY GENERATION
+         * ==================================================================== */
+        const container = document.getElementById('webgl-container');
+        const scene = new THREE.Scene();
+        scene.fog = new THREE.FogExp2(0x030408, 0.02);
+
+        const camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 100);
+        camera.position.set(0, 3.2, 7.8);
+
+        const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: false, powerPreference: "high-performance" });
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+        renderer.shadowMap.enabled = true;
+        renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+        renderer.toneMapping = THREE.ACESFilmicToneMapping;
+        renderer.toneMappingExposure = 1.25;
+        container.appendChild(renderer.domElement);
+
+        const controls = new THREE.OrbitControls(camera, renderer.domElement);
+        controls.enableDamping = true;
+        controls.dampingFactor = 0.05;
+        controls.maxPolarAngle = Math.PI / 2 - 0.02; // Don't clip below desk
+        controls.minDistance = 2.5;
+        controls.maxDistance = 14;
+
+        // Interactive Objects Group
+        const interactiveGroup = new THREE.Group();
+        scene.add(interactiveGroup);
+
+        // Screen Texture
+        const screenTexture = new THREE.CanvasTexture(screenCanvas);
+        screenTexture.minFilter = THREE.LinearFilter;
+
+        // Lighting System
+        const ambientLight = new THREE.AmbientLight(0x202b42, 1.6);
+        scene.add(ambientLight);
+
+        const keyLight = new THREE.DirectionalLight(0xffffff, 2.0);
+        keyLight.position.set(2, 8, 8);
+        keyLight.castShadow = true;
+        keyLight.shadow.mapSize.width = 2048;
+        keyLight.shadow.mapSize.height = 2048;
+        scene.add(keyLight);
+
+        const neonLightLeft = new THREE.PointLight(THEMES[0].primary, 4.0, 12);
+        neonLightLeft.position.set(-4, 3, 2);
+        scene.add(neonLightLeft);
+
+        const neonLightRight = new THREE.PointLight(THEMES[0].secondary, 4.0, 12);
+        neonLightRight.position.set(4, 2, 2);
+        scene.add(neonLightRight);
+
+        const cpuInternalLight = new THREE.PointLight(THEMES[0].primary, 6.0, 6);
+        cpuInternalLight.position.set(3.0, 1.8, -0.2);
+        scene.add(cpuInternalLight);
+
+        // Materials
+        const deskMat = new THREE.MeshStandardMaterial({
+            color: 0x0a1020,
+            roughness: 0.25,
+            metalness: 0.8
+        });
+
+        const darkMetalMat = new THREE.MeshStandardMaterial({
+            color: 0x222c40,
+            roughness: 0.3,
+            metalness: 0.85
+        });
+
+        const glassMat = new THREE.MeshPhysicalMaterial({
+            color: 0x88d6ff,
+            transparent: true,
+            opacity: 0.35,
+            roughness: 0.1,
+            metalness: 0.1,
+            transmission: 0.85,
+            ior: 1.5
+        });
+
+        // 1. DESK & ENVIRONMENT
+        const deskGeometry = new THREE.BoxGeometry(14, 0.3, 7);
+        const deskMesh = new THREE.Mesh(deskGeometry, deskMat);
+        deskMesh.position.set(0, -0.15, 0);
+        deskMesh.receiveShadow = true;
+        scene.add(deskMesh);
+
+        const stripGeom = new THREE.BoxGeometry(13.8, 0.05, 0.05);
+        const stripMat = new THREE.MeshBasicMaterial({ color: THEMES[0].primary });
+        const stripMesh = new THREE.Mesh(stripGeom, stripMat);
+        stripMesh.position.set(0, -0.02, 3.48);
+        scene.add(stripMesh);
+
+        const padGeom = new THREE.BoxGeometry(7, 0.02, 3.2);
+        const padMat = new THREE.MeshStandardMaterial({ color: 0x0e172c, roughness: 0.5, metalness: 0.3 });
+        const padMesh = new THREE.Mesh(padGeom, padMat);
+        padMesh.position.set(-0.4, 0.01, 1.3);
+        padMesh.receiveShadow = true;
+        scene.add(padMesh);
+
+        // 2. MONITOR SETUP
+        const monitorGroup = new THREE.Group();
+        monitorGroup.position.set(-0.6, 0, -0.5);
+
+        const baseGeom = new THREE.CylinderGeometry(0.75, 0.95, 0.08, 32);
+        const baseMesh = new THREE.Mesh(baseGeom, darkMetalMat);
+        baseMesh.position.set(0, 0.04, 0);
+        baseMesh.castShadow = true;
+        baseMesh.receiveShadow = true;
+        monitorGroup.add(baseMesh);
+
+        const colGeom = new THREE.BoxGeometry(0.28, 2.2, 0.22);
+        const colMesh = new THREE.Mesh(colGeom, darkMetalMat);
+        colMesh.position.set(0, 1.1, -0.1);
+        colMesh.rotation.x = -0.06;
+        colMesh.castShadow = true;
+        monitorGroup.add(colMesh);
+
+        const bezelGeom = new THREE.BoxGeometry(5.2, 3.1, 0.15);
+        const bezelMesh = new THREE.Mesh(bezelGeom, darkMetalMat);
+        bezelMesh.position.set(0, 2.3, 0);
+        bezelMesh.castShadow = true;
+        bezelMesh.userData = { name: "MONITOR DISPLAY", desc: "UltraWide 240Hz OLED Curved Display with Quantum Dot Technology" };
+        monitorGroup.add(bezelMesh);
+
+        const screenGeom = new THREE.PlaneGeometry(5.0, 2.9);
+        const screenMat = new THREE.MeshBasicMaterial({ map: screenTexture });
+        const screenMesh = new THREE.Mesh(screenGeom, screenMat);
+        screenMesh.position.set(0, 2.3, 0.08);
+        monitorGroup.add(screenMesh);
+
+        interactiveGroup.add(bezelMesh);
+        scene.add(monitorGroup);
+
+        // 3. CPU TOWER CASE
+        const cpuGroup = new THREE.Group();
+        cpuGroup.position.set(3.0, 0, -0.4);
+        cpuGroup.rotation.y = -0.45;
+
+        const caseBodyGeom = new THREE.BoxGeometry(1.2, 2.8, 2.0);
+        const caseBodyMesh = new THREE.Mesh(caseBodyGeom, darkMetalMat);
+        caseBodyMesh.position.set(0, 1.4, 0);
+        caseBodyMesh.castShadow = true;
+        caseBodyMesh.receiveShadow = true;
+        caseBodyMesh.userData = { name: "CPU TOWER CASE", desc: "Cyber Case with Tempered Glass Panel & Liquid Cooling Matrix" };
+        cpuGroup.add(caseBodyMesh);
+
+        interactiveGroup.add(caseBodyMesh);
+
+        const glassPanelGeom = new THREE.BoxGeometry(0.04, 2.6, 1.8);
+        const glassPanelMesh = new THREE.Mesh(glassPanelGeom, glassMat);
+        glassPanelMesh.position.set(-0.59, 1.4, 0);
+        cpuGroup.add(glassPanelMesh);
+
+        const gpuGeom = new THREE.BoxGeometry(0.5, 0.35, 1.3);
+        const gpuMat = new THREE.MeshStandardMaterial({ color: 0x24324a, metalness: 0.85, roughness: 0.2 });
+        const gpuMesh = new THREE.Mesh(gpuGeom, gpuMat);
+        gpuMesh.position.set(-0.1, 1.1, 0.0);
+        cpuGroup.add(gpuMesh);
+
+        const gpuLogoGeom = new THREE.BoxGeometry(0.02, 0.07, 0.8);
+        const gpuLogoMat = new THREE.MeshBasicMaterial({ color: THEMES[0].primary });
+        const gpuLogoMesh = new THREE.Mesh(gpuLogoGeom, gpuLogoMat);
+        gpuLogoMesh.position.set(-0.36, 1.1, 0.0);
+        cpuGroup.add(gpuLogoMesh);
+
+        const ramGroup = new THREE.Group();
+        for (let i = 0; i < 4; i++) {
+            const ramStick = new THREE.Mesh(
+                new THREE.BoxGeometry(0.04, 0.45, 0.2),
+                new THREE.MeshStandardMaterial({ color: 0x18243c, metalness: 0.9 })
+            );
+            ramStick.position.set(0.1, 1.7, -0.3 + i * 0.07);
+
+            const ramRgb = new THREE.Mesh(
+                new THREE.BoxGeometry(0.05, 0.07, 0.2),
+                new THREE.MeshBasicMaterial({ color: THEMES[0].secondary })
+            );
+            ramRgb.position.set(0.1, 1.95, -0.3 + i * 0.07);
+            ramGroup.add(ramStick);
+            ramGroup.add(ramRgb);
+        }
+        cpuGroup.add(ramGroup);
+
+        const pumpGeom = new THREE.CylinderGeometry(0.18, 0.18, 0.12, 32);
+        const pumpMat = new THREE.MeshStandardMaterial({ color: 0x101a2e, metalness: 0.9 });
+        const pumpMesh = new THREE.Mesh(pumpGeom, pumpMat);
+        pumpMesh.rotation.z = Math.PI / 2;
+        pumpMesh.position.set(0.12, 1.7, 0.05);
+        cpuGroup.add(pumpMesh);
+
+        const pumpScreen = new THREE.Mesh(
+            new THREE.CircleGeometry(0.15, 32),
+            new THREE.MeshBasicMaterial({ color: THEMES[0].primary })
+        );
+        pumpScreen.rotation.y = -Math.PI / 2;
+        pumpScreen.position.set(-0.07, 1.7, 0.05);
+        cpuGroup.add(pumpScreen);
+
+        const fanGroupArray = [];
+        for (let f = 0; f < 2; f++) {
+            const fanHolder = new THREE.Group();
+            fanHolder.position.set(-0.55, 0.9 + f * 0.9, -0.45);
+
+            const fanRing = new THREE.Mesh(
+                new THREE.TorusGeometry(0.3, 0.035, 16, 32),
+                new THREE.MeshBasicMaterial({ color: THEMES[0].primary })
+            );
+            fanRing.rotation.y = Math.PI / 2;
+            fanHolder.add(fanRing);
+
+            const bladeGroup = new THREE.Group();
+            for (let b = 0; b < 7; b++) {
+                const blade = new THREE.Mesh(
+                    new THREE.BoxGeometry(0.02, 0.24, 0.07),
+                    darkMetalMat
+                );
+                blade.rotation.x = (b / 7) * Math.PI * 2;
+                bladeGroup.add(blade);
+            }
+            bladeGroup.rotation.y = Math.PI / 2;
+            fanHolder.add(bladeGroup);
+            fanGroupArray.push(bladeGroup);
+            cpuGroup.add(fanHolder);
+        }
+
+        scene.add(cpuGroup);
+
+        // 4. MECHANICAL KEYBOARD
+        const kbGroup = new THREE.Group();
+        kbGroup.position.set(-0.6, 0.05, 1.3);
+
+        const kbBaseGeom = new THREE.BoxGeometry(2.8, 0.12, 1.1);
+        const kbBaseMesh = new THREE.Mesh(kbBaseGeom, darkMetalMat);
+        kbBaseMesh.castShadow = true;
+        kbBaseMesh.userData = { name: "MECHANICAL KEYBOARD", desc: "Per-Key RGB Custom Mechanical Switches with Aluminum Chassis" };
+        kbGroup.add(kbBaseMesh);
+        interactiveGroup.add(kbBaseMesh);
+
+        const keyMeshes = [];
+        const rows = 5, cols = 14;
+        const keyW = 0.16, keyH = 0.08, keyD = 0.16;
+        const startX = -1.2, startZ = -0.4;
+
+        for (let r = 0; r < rows; r++) {
+            for (let c = 0; c < cols; c++) {
+                const keyGeom = new THREE.BoxGeometry(keyW, keyH, keyD);
+                const keyMat = new THREE.MeshStandardMaterial({ color: 0x222e44, roughness: 0.4 });
+                const keyMesh = new THREE.Mesh(keyGeom, keyMat);
+                keyMesh.position.set(startX + c * 0.19, 0.08, startZ + r * 0.19);
+
+                const rgbDot = new THREE.Mesh(
+                    new THREE.BoxGeometry(keyW * 0.9, 0.02, keyD * 0.9),
+                    new THREE.MeshBasicMaterial({ color: THEMES[0].primary })
+                );
+                rgbDot.position.set(startX + c * 0.19, 0.03, startZ + r * 0.19);
+                kbGroup.add(rgbDot);
+                kbGroup.add(keyMesh);
+                keyMeshes.push({ mesh: keyMesh, light: rgbDot, baseColor: 0x222e44 });
+            }
+        }
+        scene.add(kbGroup);
+
+        // 5. ERGONOMIC GAMING MOUSE
+        const mouseGroup = new THREE.Group();
+        mouseGroup.position.set(1.8, 0.05, 1.3);
+
+        const mouseBodyGeom = new THREE.BoxGeometry(0.45, 0.18, 0.75);
+        const mouseBodyMesh = new THREE.Mesh(mouseBodyGeom, darkMetalMat);
+        mouseBodyMesh.castShadow = true;
+        mouseBodyMesh.userData = { name: "QUANTUM MOUSE", desc: "Ultra-Lightweight 32,000 DPI Optical Gaming Mouse" };
+        mouseGroup.add(mouseBodyMesh);
+        interactiveGroup.add(mouseBodyMesh);
+
+        const mouseScroll = new THREE.Mesh(
+            new THREE.CylinderGeometry(0.04, 0.04, 0.1, 16),
+            new THREE.MeshBasicMaterial({ color: THEMES[0].primary })
+        );
+        mouseScroll.rotation.z = Math.PI / 2;
+        mouseScroll.position.set(0, 0.1, -0.18);
+        mouseGroup.add(mouseScroll);
+
+        scene.add(mouseGroup);
+
+        // 6. HOLOGRAPHIC PROJECTION FLOATING ABOVE MONITOR
+        const holoGroup = new THREE.Group();
+        holoGroup.position.set(-0.6, 4.3, -0.5);
+
+        const holoConeGeom = new THREE.ConeGeometry(1.2, 1.2, 32, 1, true);
+        const holoConeMat = new THREE.MeshBasicMaterial({
+            color: THEMES[0].primary,
+            transparent: true,
+            opacity: 0.22,
+            side: THREE.DoubleSide
+        });
+        const holoCone = new THREE.Mesh(holoConeGeom, holoConeMat);
+        holoCone.rotation.x = Math.PI;
+        holoCone.position.set(0, -0.6, 0);
+        holoGroup.add(holoCone);
+
+        const holoOrbGeom = new THREE.IcosahedronGeometry(0.35, 2);
+        const holoOrbMat = new THREE.MeshBasicMaterial({ color: THEMES[0].primary, wireframe: true });
+        const holoOrb = new THREE.Mesh(holoOrbGeom, holoOrbMat);
+        holoOrb.userData = { name: "NEURAL HOLOGRAM", desc: "Real-time 3D Holographic System Diagnostics & AI Core" };
+        holoGroup.add(holoOrb);
+        interactiveGroup.add(holoOrb);
+
+        scene.add(holoGroup);
+
+        // 7. AMBIENT FLOATING CYBER PARTICLES SYSTEM
+        const particleCount = 280;
+        const particleGeom = new THREE.BufferGeometry();
+        const particlePositions = new Float32Array(particleCount * 3);
+
+        for (let i = 0; i < particleCount * 3; i += 3) {
+            particlePositions[i] = (Math.random() - 0.5) * 16;
+            particlePositions[i + 1] = Math.random() * 8;
+            particlePositions[i + 2] = (Math.random() - 0.5) * 12;
+        }
+        particleGeom.setAttribute('position', new THREE.BufferAttribute(particlePositions, 3));
+
+        const particleMat = new THREE.PointsMaterial({
+            color: THEMES[0].primary,
+            size: 0.05,
+            transparent: true,
+            opacity: 0.75,
+            blending: THREE.AdditiveBlending
+        });
+        const particleSystem = new THREE.Points(particleGeom, particleMat);
+        scene.add(particleSystem);
+
+        /* ====================================================================
+         * 5. CAMERA PRESETS & SMOOTH TRANSITION CONTROLS
+         * ==================================================================== */
+        const CAMERA_VIEWS = {
+            overview: { pos: { x: 0, y: 3.2, z: 7.8 }, target: { x: 0, y: 1.6, z: 0 } },
+            screen: { pos: { x: -0.6, y: 2.3, z: 3.2 }, target: { x: -0.6, y: 2.3, z: -0.4 } },
+            tower: { pos: { x: 1.6, y: 1.6, z: 2.0 }, target: { x: 3.0, y: 1.4, z: -0.4 } },
+            keyboard: { pos: { x: -0.6, y: 2.5, z: 2.8 }, target: { x: -0.6, y: 0.1, z: 1.3 } }
+        };
+
+        const viewOrder = ['overview', 'screen', 'tower', 'keyboard'];
+
+        function setCameraView(viewKey) {
+            const preset = CAMERA_VIEWS[viewKey];
+            if (!preset) return;
+
+            STATE.currentView = viewKey;
+
+            gsap.to(camera.position, {
+                x: preset.pos.x,
+                y: preset.pos.y,
+                z: preset.pos.z,
+                duration: 1.8,
+                ease: "power3.inOut"
+            });
+
+            gsap.to(controls.target, {
+                x: preset.target.x,
+                y: preset.target.y,
+                z: preset.target.z,
+                duration: 1.8,
+                ease: "power3.inOut",
+                onUpdate: () => controls.update()
+            });
+
+            document.querySelectorAll('.dock-btn[data-view]').forEach(btn => {
+                btn.classList.toggle('active-preset', btn.dataset.view === viewKey);
+            });
+
+            sfx.playClick();
+        }
+
+        function cycleNextView() {
+            const currIdx = viewOrder.indexOf(STATE.currentView);
+            const nextIdx = (currIdx + 1) % viewOrder.length;
+            setCameraView(viewOrder[nextIdx]);
+        }
+
+        function cyclePrevView() {
+            const currIdx = viewOrder.indexOf(STATE.currentView);
+            const prevIdx = (currIdx - 1 + viewOrder.length) % viewOrder.length;
+            setCameraView(viewOrder[prevIdx]);
+        }
+
+        /* ====================================================================
+         * 6. RAYCASTING & INTERACTIVE HOVER TOOLTIP SYSTEM
+         * ==================================================================== */
+        const raycaster = new THREE.Raycaster();
+        const mouseVec = new THREE.Vector2(-1000, -1000);
+        const tooltip = document.getElementById('info-tooltip');
+        const ttTitle = document.getElementById('tt-title');
+        const ttDesc = document.getElementById('tt-desc');
+        const handCursor = document.getElementById('hand-cursor');
+        const handProgressRing = document.getElementById('hand-progress-ring');
+
+        window.addEventListener('mousemove', (e) => {
+            if (!STATE.handTrackingActive) {
+                mouseVec.x = (e.clientX / window.innerWidth) * 2 - 1;
+                mouseVec.y = -(e.clientY / window.innerHeight) * 2 + 1;
+
+                if (tooltip.classList.contains('visible')) {
+                    tooltip.style.left = `${e.clientX}px`;
+                    tooltip.style.top = `${e.clientY}px`;
+                }
+            }
+        });
+
+        function checkRaycast() {
+            raycaster.setFromCamera(mouseVec, camera);
+            const intersects = raycaster.intersectObjects(interactiveGroup.children, true);
+
+            if (intersects.length > 0) {
+                let hitObj = intersects[0].object;
+                while (hitObj && !hitObj.userData.name && hitObj.parent) {
+                    hitObj = hitObj.parent;
+                }
+
+                if (hitObj && hitObj.userData && hitObj.userData.name) {
+                    if (STATE.hoveredObject !== hitObj) {
+                        STATE.hoveredObject = hitObj;
+                        ttTitle.innerText = hitObj.userData.name;
+                        ttDesc.innerText = hitObj.userData.desc;
+                        tooltip.classList.add('visible');
+                        document.body.style.cursor = 'pointer';
+                        sfx.playHover();
+                    }
+                    return;
+                }
+            }
+
+            if (STATE.hoveredObject) {
+                STATE.hoveredObject = null;
+                tooltip.classList.remove('visible');
+                document.body.style.cursor = 'default';
+            }
+        }
+
+        function triggerSceneClick() {
+            if (STATE.hoveredObject) {
+                const name = STATE.hoveredObject.userData.name;
+                if (name === "MONITOR DISPLAY") setCameraView('screen');
+                else if (name === "CPU TOWER CASE") setCameraView('tower');
+                else if (name === "MECHANICAL KEYBOARD") setCameraView('keyboard');
+            }
+        }
+
+        window.addEventListener('click', (e) => {
+            if (e.target.closest('#cyber-dock') || e.target.closest('#boot-overlay') || e.target.closest('#webcam-container')) return;
+            triggerSceneClick();
+        });
+
+        /* ====================================================================
+         * 7. THEME SWITCHING & OVERCLOCK LOGIC
+         * ==================================================================== */
+        function applyTheme(theme) {
+            neonLightLeft.color.setHex(theme.primary);
+            neonLightRight.color.setHex(theme.secondary);
+            cpuInternalLight.color.setHex(theme.primary);
+            stripMat.color.setHex(theme.primary);
+            gpuLogoMat.color.setHex(theme.primary);
+            pumpScreen.material.color.setHex(theme.primary);
+            mouseScroll.material.color.setHex(theme.primary);
+            holoOrbMat.color.setHex(theme.primary);
+            holoConeMat.color.setHex(theme.primary);
+            particleMat.color.setHex(theme.primary);
+
+            keyMeshes.forEach((k, idx) => {
+                const c = idx % 2 === 0 ? theme.primary : theme.secondary;
+                k.light.material.color.setHex(c);
+            });
+
+            document.documentElement.style.setProperty('--primary', theme.primaryCss);
+            document.documentElement.style.setProperty('--secondary', theme.secondaryCss);
+        }
+
+        function toggleTheme() {
+            STATE.themeIndex = (STATE.themeIndex + 1) % THEMES.length;
+            applyTheme(getActiveTheme());
+            sfx.playClick();
+        }
+
+        function toggleOverclock() {
+            STATE.overclock = !STATE.overclock;
+            const btn = document.getElementById('overclock-btn');
+            btn.classList.toggle('active-preset', STATE.overclock);
+            btn.style.borderColor = STATE.overclock ? '#ff0055' : '';
+
+            const tempBadge = document.getElementById('temp-badge');
+            if (STATE.overclock) {
+                tempBadge.innerText = "CORE TEMP: 68°C [BOOST]";
+                tempBadge.style.borderColor = "#ff0055";
+                tempBadge.style.color = "#ff0055";
+            } else {
+                tempBadge.innerText = "CORE TEMP: 34°C";
+                tempBadge.style.borderColor = "var(--secondary)";
+                tempBadge.style.color = "var(--secondary)";
+            }
+
+            sfx.playOverclock();
+        }
+
+        document.getElementById('theme-btn').addEventListener('click', toggleTheme);
+        document.getElementById('overclock-btn').addEventListener('click', toggleOverclock);
+
+        document.getElementById('audio-btn').addEventListener('click', (e) => {
+            STATE.soundEnabled = !STATE.soundEnabled;
+            e.currentTarget.classList.toggle('active-preset', STATE.soundEnabled);
+            sfx.playClick();
+        });
+
+        document.querySelectorAll('.dock-btn[data-view]').forEach(btn => {
+            btn.addEventListener('click', () => {
+                setCameraView(btn.dataset.view);
+            });
+        });
+
+        /* ====================================================================
+         * 8. AUTOMATIC TOUCHLESS HOVER-DWELL SELECTION ENGINE
+         * ==================================================================== */
+        let activeHoverBtn = null;
+        let hoverTimer = null;
+
+        function updateHoverDwell(screenX, screenY) {
+            const hitEl = document.elementFromPoint(screenX, screenY);
+            const targetBtn = hitEl ? hitEl.closest('.dock-btn, .boot-btn, #start-btn') : null;
+
+            if (targetBtn) {
+                if (activeHoverBtn !== targetBtn) {
+                    cancelHoverDwell();
+                    activeHoverBtn = targetBtn;
+                    targetBtn.classList.add('hover-active');
+                    handProgressRing.classList.add('active');
+
+                    hoverTimer = setTimeout(() => {
+                        if (activeHoverBtn === targetBtn) {
+                            targetBtn.click();
+                            sfx.playClick();
+                            cancelHoverDwell();
+                        }
+                    }, 650); // 650ms automatic dwell trigger
+                }
+            } else {
+                if (activeHoverBtn) {
+                    cancelHoverDwell();
+                }
+            }
+        }
+
+        function cancelHoverDwell() {
+            if (hoverTimer) {
+                clearTimeout(hoverTimer);
+                hoverTimer = null;
+            }
+            if (activeHoverBtn) {
+                activeHoverBtn.classList.remove('hover-active');
+                activeHoverBtn = null;
+            }
+            handProgressRing.classList.remove('active');
+        }
+
+        /* ====================================================================
+         * 9. AI WEBCAM TOUCHLESS AIR HAND GESTURE RECOGNITION (MEDIAPIPE)
+         * ==================================================================== */
+        const webcamVideo = document.getElementById('webcam-video');
+        const webcamCanvas = document.getElementById('webcam-canvas');
+        const wCtx = webcamCanvas.getContext('2d');
+        const handStatus = document.getElementById('hand-status');
+        let cameraUtilsInstance = null;
+
+        let handsDetector = new Hands({
+            locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${file}`
+        });
+
+        handsDetector.setOptions({
+            maxNumHands: 1,
+            modelComplexity: 1,
+            minDetectionConfidence: 0.6,
+            minTrackingConfidence: 0.6
+        });
+
+        handsDetector.onResults(onHandResults);
+
+        function drawHandSkeleton(landmarks) {
+            wCtx.clearRect(0, 0, webcamCanvas.width, webcamCanvas.height);
+            wCtx.drawImage(webcamVideo, 0, 0, webcamCanvas.width, webcamCanvas.height);
+
+            if (!landmarks) return;
+
+            const theme = getActiveTheme();
+            wCtx.fillStyle = theme.primaryCss;
+            wCtx.strokeStyle = theme.primaryCss;
+            wCtx.lineWidth = 2;
+
+            const connections = [
+                [0, 1], [1, 2], [2, 3], [3, 4],
+                [0, 5], [5, 6], [6, 7], [7, 8],
+                [5, 9], [9, 10], [10, 11], [11, 12],
+                [9, 13], [13, 14], [15, 16],
+                [13, 17], [17, 18], [18, 19], [19, 20], [0, 17]
+            ];
+
+            connections.forEach(([i, j]) => {
+                const pt1 = landmarks[i];
+                const pt2 = landmarks[j];
+                wCtx.beginPath();
+                wCtx.moveTo(pt1.x * webcamCanvas.width, pt1.y * webcamCanvas.height);
+                wCtx.lineTo(pt2.x * webcamCanvas.width, pt2.y * webcamCanvas.height);
+                wCtx.stroke();
+            });
+
+            landmarks.forEach((pt, idx) => {
+                wCtx.beginPath();
+                wCtx.arc(pt.x * webcamCanvas.width, pt.y * webcamCanvas.height, (idx === 8 || idx === 12) ? 5 : 3, 0, Math.PI * 2);
+                wCtx.fillStyle = (idx === 8 || idx === 12) ? theme.secondaryCss : theme.primaryCss;
+                wCtx.fill();
+            });
+        }
+
+        let lastHandX = 0.5;
+
+        function onHandResults(results) {
+            if (results.multiHandLandmarks && results.multiHandLandmarks.length > 0) {
+                const landmarks = results.multiHandLandmarks[0];
+                drawHandSkeleton(landmarks);
+
+                // Index Finger Tip (Landmark 8) & Middle Finger Tip (Landmark 12)
+                const indexPt = landmarks[8];
+                const middlePt = landmarks[12];
+
+                // Mirrored coordinates for intuitive screen movement
+                const screenX = (1 - indexPt.x) * window.innerWidth;
+                const screenY = indexPt.y * window.innerHeight;
+
+                // Update 3D Raycast Vector
+                mouseVec.x = ((1 - indexPt.x) * 2) - 1;
+                mouseVec.y = -(indexPt.y * 2) + 1;
+
+                // Move Cyber Hand Cursor
+                handCursor.style.left = `${screenX}px`;
+                handCursor.style.top = `${screenY}px`;
+
+                if (tooltip.classList.contains('visible')) {
+                    tooltip.style.left = `${screenX}px`;
+                    tooltip.style.top = `${screenY}px`;
+                }
+
+                // Automatic Touchless Hover-Dwell Selection on Menu Buttons
+                updateHoverDwell(screenX, screenY);
+
+                // Two Finger Join Gesture (Index 8 + Middle 12) for Immediate Click
+                const dx = middlePt.x - indexPt.x;
+                const dy = middlePt.y - indexPt.y;
+                const twoFingerDist = Math.sqrt(dx * dx + dy * dy);
+
+                const now = Date.now();
+
+                if (twoFingerDist < 0.045) {
+                    if (!STATE.isPinching) {
+                        STATE.isPinching = true;
+                        handCursor.classList.add('pinched');
+                        handStatus.innerText = "AIR GESTURE: INSTANT SELECT";
+                        handStatus.style.color = "var(--secondary)";
+                        sfx.playClick();
+
+                        const hitElement = document.elementFromPoint(screenX, screenY);
+                        if (hitElement && typeof hitElement.click === 'function' && (hitElement.classList.contains('dock-btn') || hitElement.id === 'start-btn')) {
+                            hitElement.click();
+                        } else {
+                            triggerSceneClick();
+                        }
+                    }
+                } else {
+                    if (STATE.isPinching) {
+                        STATE.isPinching = false;
+                        handCursor.classList.remove('pinched');
+                    }
+                }
+
+                // Air Swipe Recognition (Horizontal displacement speed)
+                const xDiff = indexPt.x - lastHandX;
+                if (now - STATE.lastGestureTime > 750) {
+                    if (xDiff > 0.32) {
+                        cycleNextView();
+                        STATE.lastGestureTime = now;
+                        handStatus.innerText = "GESTURE: SWIPE NEXT VIEW";
+                    } else if (xDiff < -0.32) {
+                        cyclePrevView();
+                        STATE.lastGestureTime = now;
+                        handStatus.innerText = "GESTURE: SWIPE PREV VIEW";
+                    } else if (!STATE.isPinching) {
+                        handStatus.innerText = "AIR GESTURE: TOUCHLESS ACTIVE";
+                        handStatus.style.color = "var(--primary)";
+                    }
+                }
+                lastHandX = indexPt.x;
+
+            } else {
+                drawHandSkeleton(null);
+                cancelHoverDwell();
+                handStatus.innerText = "AIR GESTURE: SEARCHING HAND...";
+                handStatus.style.color = "#ffaa00";
+            }
+        }
+
+        async function startHandTracking() {
+            try {
+                handStatus.innerText = "INITIALIZING WEBCAM...";
+                const stream = await navigator.mediaDevices.getUserMedia({ video: { width: 640, height: 480 } });
+                webcamVideo.srcObject = stream;
+                await webcamVideo.play();
+
+                cameraUtilsInstance = new Camera(webcamVideo, {
+                    onFrame: async () => {
+                        await handsDetector.send({ image: webcamVideo });
+                    },
+                    width: 320,
+                    height: 240
+                });
+                cameraUtilsInstance.start();
+
+                STATE.handTrackingActive = true;
+                document.getElementById('webcam-container').style.display = 'flex';
+                sfx.playPowerUp();
+
+            } catch (err) {
+                console.warn("Webcam access pending user approval or unavailable.");
+            }
+        }
+
+        // Auto-start webcam tracking on page load so user never has to manually click
+        window.addEventListener('load', () => {
+            setTimeout(startHandTracking, 500);
+        });
+
+        /* ====================================================================
+         * 10. SYSTEM INITIALIZATION & BOOT CINEMATIC SEQUENCE
+         * ==================================================================== */
+        document.getElementById('start-btn').addEventListener('click', () => {
+            sfx.init();
+            sfx.playPowerUp();
+
+            const overlay = document.getElementById('boot-overlay');
+            overlay.classList.add('hidden');
+
+            document.getElementById('cyber-header').classList.add('active');
+            document.getElementById('cyber-dock').classList.add('active');
+
+            STATE.initialized = true;
+
+            gsap.fromTo(camera.position,
+                { x: 4.5, y: 1.2, z: 4.0 },
+                { x: 0, y: 3.2, z: 7.8, duration: 3.0, ease: "power3.out", onUpdate: () => controls.update() }
+            );
+        });
+
+        // Real-time Clock Update
+        function updateClock() {
+            const now = new Date();
+            document.getElementById('live-clock').innerText = now.toUTCString().split(' ')[4] + ' UTC';
+        }
+        setInterval(updateClock, 1000);
+        updateClock();
+
+        /* ====================================================================
+         * 11. MAIN ANIMATION LOOP (60 FPS)
+         * ==================================================================== */
+        const clock = new THREE.Clock();
+
+        function animate() {
+            requestAnimationFrame(animate);
+
+            const delta = clock.getDelta();
+            STATE.time += delta;
+
+            const fanSpeed = STATE.overclock ? 14 : 4;
+
+            // Spin CPU Cooling Fans
+            fanGroupArray.forEach(f => {
+                f.rotation.x += delta * fanSpeed;
+            });
+
+            // Rotate Holographic Projection Above Monitor
+            holoOrb.rotation.y += delta * 1.5;
+            holoOrb.rotation.x += delta * 0.8;
+            holoGroup.position.y = 4.3 + Math.sin(STATE.time * 2) * 0.08;
+
+            // Float Cyber Particles
+            const positions = particleGeom.attributes.position.array;
+            for (let i = 1; i < particleCount * 3; i += 3) {
+                positions[i] += delta * 0.3;
+                if (positions[i] > 8) positions[i] = 0;
+            }
+            particleGeom.attributes.position.needsUpdate = true;
+
+            // Wave RGB Ripple across Keyboard
+            keyMeshes.forEach((k, idx) => {
+                const wave = Math.sin(STATE.time * 4 + idx * 0.2);
+                if (wave > 0.8) {
+                    k.mesh.material.color.setHex(getActiveTheme().primary);
+                } else {
+                    k.mesh.material.color.setHex(0x222e44);
+                }
+            });
+
+            // Update Dynamic 2D Monitor Canvas
+            updateScreenCanvas(STATE.time);
+            screenTexture.needsUpdate = true;
+
+            // Raycast Check
+            checkRaycast();
+
+            controls.update();
+            renderer.render(scene, camera);
+        }
+        animate();
+
+        // Responsive Window Resize Handler
+        window.addEventListener('resize', () => {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        });
+    </script>
+</body>
+
+</html>

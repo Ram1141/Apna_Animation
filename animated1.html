@@ -1,0 +1,307 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cosmic Galaxy Interactive Input</title>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;700;900&display=swap" rel="stylesheet">
+    <style>
+        *{margin:0;padding:0;box-sizing:border-box}
+        body{min-height:100vh;display:flex;align-items:center;justify-content:center;background:#030308;font-family:'Outfit',sans-serif;overflow:hidden}
+        .container{position:relative;width:100%;max-width:560px;padding:40px;z-index:1;display:flex;flex-direction:column;align-items:center}
+        #particleCanvas{position:fixed;top:0;left:0;width:100%;height:100%;pointer-events:none;z-index:10}
+        
+        .display-area{position:relative;width:100%;height:340px;margin-bottom:24px;display:flex;align-items:center;justify-content:center}
+        
+        .input-wrapper{position:relative;width:100%;max-width:400px}
+        .glow-border{position:relative;border-radius:30px;padding:2px;background:linear-gradient(135deg,rgba(0,240,255,0.2),rgba(150,0,255,0.2),rgba(255,0,150,0.2));transition:all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275)}
+        .glow-border.active{background:linear-gradient(135deg,rgba(0,240,255,0.6),rgba(150,0,255,0.6),rgba(255,0,150,0.6));box-shadow:0 0 30px rgba(0,240,255,0.25), 0 0 60px rgba(150,0,255,0.15)}
+        .animated-input{width:100%;padding:16px 24px;font-size:17px;font-family:'Outfit',sans-serif;font-weight:400;letter-spacing:1.5px;color:#fff;background:rgba(12,12,22,0.92);border:1px solid rgba(255,255,255,0.1);border-radius:28px;outline:none;caret-color:#00f0ff;text-align:center;backdrop-filter:blur(10px)}
+        .animated-input::placeholder{color:rgba(255,255,255,0.3);letter-spacing:2px;font-weight:300}
+    </style>
+</head>
+<body>
+    <a href="index.html" style="position:fixed; top:20px; left:20px; z-index:100; text-decoration:none; padding:10px 18px; background:rgba(0,240,255,0.2); border:1px solid #00f0ff; color:#fff; border-radius:20px; font-size:13px; font-weight:700; letter-spacing:1px; backdrop-filter:blur(10px); transition:all 0.3s ease;" onmouseover="this.style.background='rgba(0,240,255,0.4)'" onmouseout="this.style.background='rgba(0,240,255,0.2)'">← BACK TO HUB</a>
+    <canvas id="particleCanvas"></canvas>
+    <div class="container">
+        <div class="display-area" id="displayArea"></div>
+        <div class="input-wrapper">
+            <div class="glow-border" id="glowBorder">
+                <input type="text" class="animated-input" id="magicInput" autocomplete="off" spellcheck="false" placeholder="EXPLORE THE COSMOS..."/>
+            </div>
+        </div>
+    </div>
+
+    <script>
+    const canvas = document.getElementById('particleCanvas');
+    const ctx = canvas.getContext('2d');
+    const input = document.getElementById('magicInput');
+    const glowBorder = document.getElementById('glowBorder');
+    const displayArea = document.getElementById('displayArea');
+
+    let particles = [];
+    let galaxyDots = [];
+    let textDots = [];
+    let currentText = '';
+    let mouse = {x: -1000, y: -1000};
+    let isHoveringDisplay = false;
+    let mode = 'galaxy';
+    let globalAngle = 0;
+
+    function resizeCanvas(){
+        canvas.width = window.innerWidth;
+        canvas.height = window.innerHeight;
+    }
+    resizeCanvas();
+    window.addEventListener('resize', resizeCanvas);
+
+    // Color palette generator for cosmic theme (Cyan -> Indigo -> Electric Magenta -> Gold)
+    function getCosmicColor(factor, alpha=1){
+        const colors = [
+            {r:0, g:240, b:255},    // Cyan
+            {r:140, g:40, b:255},   // Electric Purple
+            {r:255, g:0, b:150},    // Neon Magenta
+            {r:255, g:200, b:50}    // Cosmic Gold
+        ];
+        const scaled = (factor % 1) * (colors.length - 1);
+        const idx = Math.floor(scaled);
+        const t = scaled - idx;
+        const c1 = colors[idx];
+        const c2 = colors[idx+1] || colors[0];
+
+        const r = Math.floor(c1.r + (c2.r - c1.r)*t);
+        const g = Math.floor(c1.g + (c2.g - c1.g)*t);
+        const b = Math.floor(c1.b + (c2.b - c1.b)*t);
+        return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+    }
+
+    class CosmicDot {
+        constructor(baseX, baseY, initX, initY, colorFactor=0.5){
+            this.baseX = baseX;
+            this.baseY = baseY;
+            this.x = initX !== undefined ? initX : baseX;
+            this.y = initY !== undefined ? initY : baseY;
+            this.size = Math.random()*2.2 + 0.9;
+            this.pulse = Math.random()*Math.PI*2;
+            this.speed = 0.02 + Math.random()*0.03;
+            this.colorFactor = colorFactor;
+            this.angleOffset = Math.atan2(baseY, baseX);
+            this.radiusOffset = Math.sqrt(baseX*baseX + baseY*baseY);
+            this.hoverFactor = 0;
+            this.orbitSpeed = 0.005 + (1 / (this.radiusOffset + 10)) * 2;
+        }
+
+        update(cx, cy, mouseX, mouseY, currentAngle){
+            let targetX, targetY;
+
+            if(mode === 'galaxy'){
+                // Rotating Spiral Galaxy arms
+                const a = this.angleOffset + currentAngle * (this.radiusOffset * 0.01 + 0.5);
+                targetX = cx + Math.cos(a) * this.radiusOffset;
+                targetY = cy + Math.sin(a) * (this.radiusOffset * 0.65); // Tilt 3D perspective
+            } else {
+                // Stable text layout
+                targetX = cx + this.baseX;
+                targetY = cy + this.baseY;
+            }
+
+            // Magnetic Repulsion & Energy Pulsing Lens on Mouse Hover
+            const dx = this.x - mouseX;
+            const dy = this.y - mouseY;
+            const dist = Math.sqrt(dx*dx + dy*dy);
+            const lensRadius = 100;
+
+            let forceX = 0, forceY = 0;
+            this.hoverFactor = 0;
+
+            if(dist < lensRadius){
+                const normDist = dist / lensRadius;
+                this.hoverFactor = Math.pow(1 - normDist, 1.8);
+                const push = Math.sin(normDist * Math.PI) * 35;
+                const angle = Math.atan2(dy, dx);
+                
+                forceX = Math.cos(angle) * push;
+                forceY = Math.sin(angle) * push;
+            }
+
+            const destX = targetX + forceX;
+            const destY = targetY + forceY;
+
+            this.x += (destX - this.x) * 0.14;
+            this.y += (destY - this.y) * 0.14;
+            this.pulse += this.speed;
+        }
+
+        draw(){
+            const hf = this.hoverFactor || 0;
+            const s = (this.size + Math.sin(this.pulse)*0.4) * (1 + hf * 0.85);
+            const alpha = Math.min(1, 0.65 + Math.sin(this.pulse)*0.25 + hf * 0.35);
+
+            ctx.save();
+            ctx.globalAlpha = alpha;
+
+            if(hf > 0.05){
+                // Black hole / Cosmic Supernova Glow Lens effect
+                ctx.shadowBlur = 15 + hf * 20;
+                ctx.shadowColor = getCosmicColor(this.colorFactor + hf*0.3, 1);
+                ctx.fillStyle = getCosmicColor(this.colorFactor + hf*0.5, 1);
+            } else {
+                ctx.shadowBlur = 7;
+                ctx.shadowColor = getCosmicColor(this.colorFactor, 0.7);
+                ctx.fillStyle = getCosmicColor(this.colorFactor, 0.9);
+            }
+
+            ctx.beginPath();
+            ctx.arc(this.x, this.y, s, 0, Math.PI*2);
+            ctx.fill();
+
+            // Inner Starlight Core
+            ctx.fillStyle = `rgba(255, 255, 255, ${alpha * (0.4 + hf * 0.6)})`;
+            ctx.beginPath();
+            ctx.arc(this.x, this.y, s * 0.38, 0, Math.PI*2);
+            ctx.fill();
+            ctx.restore();
+        }
+    }
+
+    function getCenter(){
+        const rect = displayArea.getBoundingClientRect();
+        return { cx: rect.left + rect.width/2, cy: rect.top + rect.height/2 };
+    }
+
+    // Generate Golden Spiral / Cosmic Galaxy
+    function buildGalaxy(){
+        galaxyDots = [];
+        const { cx, cy } = getCenter();
+        const arms = 4;
+        const dotsPerArm = 140;
+
+        for(let arm=0; arm<arms; arm++){
+            const armAngle = (arm / arms) * Math.PI * 2;
+            for(let i=0; i<dotsPerArm; i++){
+                const distance = Math.pow(i / dotsPerArm, 1.3) * 140;
+                const spiralAngle = armAngle + (i * 0.04);
+                
+                const bx = Math.cos(spiralAngle) * distance + (Math.random()-0.5)*8;
+                const by = Math.sin(spiralAngle) * distance + (Math.random()-0.5)*8;
+                const colorFactor = (arm / arms) + (i / dotsPerArm)*0.3;
+
+                galaxyDots.push(new CosmicDot(bx, by, cx + bx, cy + by, colorFactor));
+            }
+        }
+
+        // Add dense Galactic Core
+        for(let i=0; i<80; i++){
+            const r = Math.pow(Math.random(), 2) * 28;
+            const a = Math.random() * Math.PI * 2;
+            const bx = Math.cos(a) * r;
+            const by = Math.sin(a) * r;
+            galaxyDots.push(new CosmicDot(bx, by, cx + bx, cy + by, 0.85));
+        }
+    }
+    buildGalaxy();
+
+    const offCanvas = document.createElement('canvas');
+    const offCtx = offCanvas.getContext('2d');
+    offCanvas.width = 850;
+    offCanvas.height = 300;
+
+    function generateTextDots(text){
+        textDots = [];
+        if(!text) return;
+        offCtx.clearRect(0,0,850,300);
+
+        let fontSize = Math.min(105, Math.max(45, 700/text.length));
+        offCtx.font = `900 ${fontSize}px Outfit, sans-serif`;
+        offCtx.fillStyle = '#fff';
+        offCtx.textAlign = 'center';
+        offCtx.textBaseline = 'middle';
+        offCtx.fillText(text, 425, 150);
+
+        const imageData = offCtx.getImageData(0, 0, 850, 300);
+        const data = imageData.data;
+        const step = 3; 
+        const { cx, cy } = getCenter();
+
+        for(let y=0; y<300; y+=step){
+            for(let x=0; x<850; x+=step){
+                const i = (y*850+x)*4;
+                if(data[i+3] > 128){
+                    const bx = x - 425;
+                    const by = y - 150;
+                    const colorFactor = ((x / 850) + (y / 300)*0.5) % 1;
+                    textDots.push(new CosmicDot(bx, by, cx + bx, cy + by, colorFactor));
+                }
+            }
+        }
+    }
+
+    function animate(){
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+        const rect = displayArea.getBoundingClientRect();
+        const cx = rect.left + rect.width/2;
+        const cy = rect.top + rect.height/2;
+
+        globalAngle += 0.008; // Slow cosmic rotation
+
+        // Draw Cosmic Supernova Aura Lens Effect under cursor when hovering
+        if(isHoveringDisplay){
+            ctx.save();
+            const grad = ctx.createRadialGradient(mouse.x, mouse.y, 5, mouse.x, mouse.y, 110);
+            grad.addColorStop(0, 'rgba(0, 240, 255, 0.25)');
+            grad.addColorStop(0.4, 'rgba(150, 0, 255, 0.15)');
+            grad.addColorStop(0.8, 'rgba(255, 0, 150, 0.05)');
+            grad.addColorStop(1, 'rgba(0, 0, 0, 0)');
+            ctx.fillStyle = grad;
+            ctx.beginPath();
+            ctx.arc(mouse.x, mouse.y, 110, 0, Math.PI*2);
+            ctx.fill();
+            ctx.restore();
+        }
+
+        if(mode === 'galaxy'){
+            galaxyDots.forEach(d => {
+                d.update(cx, cy, mouse.x, mouse.y, globalAngle);
+                d.draw();
+            });
+        } else {
+            textDots.forEach(d => {
+                d.update(cx, cy, mouse.x, mouse.y, globalAngle);
+                d.draw();
+            });
+        }
+
+        requestAnimationFrame(animate);
+    }
+    animate();
+
+    document.addEventListener('mousemove', (e) => {
+        mouse.x = e.clientX;
+        mouse.y = e.clientY;
+
+        const rect = displayArea.getBoundingClientRect();
+        if(e.clientX >= rect.left && e.clientX <= rect.right &&
+           e.clientY >= rect.top && e.clientY <= rect.bottom){
+            isHoveringDisplay = true;
+        } else {
+            isHoveringDisplay = false;
+        }
+    });
+
+    input.addEventListener('focus', () => { glowBorder.classList.add('active'); });
+    input.addEventListener('blur', () => { glowBorder.classList.remove('active'); });
+
+    input.addEventListener('input', () => {
+        currentText = input.value;
+        if(currentText.trim().length > 0){
+            mode = 'text';
+            generateTextDots(currentText);
+        } else {
+            mode = 'galaxy';
+            textDots = [];
+        }
+    });
+    </script>
+</body>
+</html>
