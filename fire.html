@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>IGNIS // AI Air Hand Fire & Flame Generator</title>
+    <title>IGNIS // AI Air Hand Fire Wall & Launcher</title>
     <!-- Modern Fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -383,17 +383,17 @@
             left: 50%;
             transform: translateX(-50%);
             z-index: 10;
-            background: rgba(12, 5, 16, 0.8);
-            border: 1px solid rgba(255, 170, 0, 0.3);
+            background: rgba(12, 5, 16, 0.85);
+            border: 1px solid rgba(255, 170, 0, 0.4);
             border-radius: 20px;
-            padding: 10px 24px;
+            padding: 12px 28px;
             font-family: var(--font-tech);
             font-size: 0.78rem;
-            color: rgba(255, 255, 255, 0.9);
+            color: rgba(255, 255, 255, 0.95);
             letter-spacing: 1.5px;
-            backdrop-filter: blur(12px);
+            backdrop-filter: blur(14px);
             display: flex;
-            gap: 20px;
+            gap: 22px;
             opacity: 0;
             transition: opacity 1s ease 1.5s;
         }
@@ -419,16 +419,15 @@
     <div id="start-overlay">
         <div class="start-card">
             <div class="title-main">IGNIS</div>
-            <div class="title-sub">AI AIR HAND FIRE GENERATOR</div>
+            <div class="title-sub">AI AIR HAND FIRE WALL & LAUNCHER</div>
             <button class="start-btn" id="start-btn">IGNITE FIRE SYSTEM</button>
         </div>
     </div>
 
     <!-- Top Status Header -->
     <div class="top-bar" id="top-bar">
-        <a href="index.html" class="badge" style="text-decoration: none; background: rgba(255, 85, 0, 0.35); color: #fff; cursor: pointer; pointer-events: auto;">← BACK TO HUB</a>
         <div class="badge">SYSTEM: IGNITED</div>
-        <div class="badge" id="fire-mode-badge">MODE: FLAME AURA</div>
+        <div class="badge" id="fire-state-badge">FIRE WALL: ATTACHED TO HAND</div>
         <div class="badge" id="zoom-badge">CAMERA ZOOM: 100%</div>
     </div>
 
@@ -446,22 +445,22 @@
 
     <!-- Side Control Dock -->
     <div class="side-dock" id="side-dock">
-        <div class="dock-label">Fire Mode</div>
-        <button class="dock-btn active" data-mode="aura">
+        <div class="dock-label">Fire Wall Action</div>
+        <button class="dock-btn active" id="action-attach-btn">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 2a7 7 0 0 0 0 14 7 7 0 0 0 0-14z"/></svg>
-            AURA
+            HAND WALL
         </button>
-        <button class="dock-btn" data-mode="beam">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
-            BEAM
+        <button class="dock-btn" id="action-throw-btn">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 19V5M5 12l7-7 7 7"/></svg>
+            THROW UP
         </button>
-        <button class="dock-btn" data-mode="vortex">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67"/></svg>
-            VORTEX
+        <button class="dock-btn" id="action-recall-btn">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12l7 7 7-7"/></svg>
+            RECALL
         </button>
 
         <div class="separator"></div>
-        <div class="dock-label">Flame Color</div>
+        <div class="dock-label">Customization</div>
 
         <button class="dock-btn" id="color-btn">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
@@ -475,9 +474,10 @@
 
     <!-- On-screen Hand Gesture Guide -->
     <div class="gesture-guide" id="gesture-guide">
-        <div class="guide-item"><span>Finger Hover Over Menu:</span> Touchless Auto Select</div>
-        <div class="guide-item"><span>Close Hand:</span> Zoom Fire & Camera</div>
-        <div class="guide-item"><span>2-Finger Join:</span> Fire Explosion</div>
+        <div class="guide-item"><span>Show Hand:</span> Spawns Animated Fire Wall</div>
+        <div class="guide-item"><span>Fast Swipe Up:</span> Throw Fire Wall Upward</div>
+        <div class="guide-item"><span>Show Hand / Pull Down:</span> Recall Fire Wall Back</div>
+        <div class="guide-item"><span>2-Finger Join:</span> Fire Blast</div>
     </div>
 
     <!-- JavaScript Engine -->
@@ -488,10 +488,13 @@
         const STATE = {
             initialized: false,
             soundEnabled: true,
-            mode: 'aura',
+            fireState: 'ATTACHED', // 'ATTACHED', 'THROWN_UP', 'RETURNING'
             colorIndex: 0,
             handDetected: false,
             handPos: { x: 0, y: 0, z: 0 },
+            handVelocityY: 0,
+            lastHandY: 0,
+            lastHandTime: Date.now(),
             handDistance: 1.0,
             isExploding: false,
             time: 0
@@ -557,7 +560,7 @@
                     osc.type = 'sawtooth';
                     osc.frequency.setValueAtTime(120, this.ctx.currentTime);
                     osc.frequency.exponentialRampToValueAtTime(30, this.ctx.currentTime + 0.6);
-                    gain.gain.setValueAtTime(0.3, this.ctx.currentTime);
+                    gain.gain.setValueAtTime(0.35, this.ctx.currentTime);
                     gain.gain.exponentialRampToValueAtTime(0.001, this.ctx.currentTime + 0.6);
                     osc.connect(gain);
                     gain.connect(this.ctx.destination);
@@ -565,11 +568,28 @@
                     osc.stop(this.ctx.currentTime + 0.6);
                 } catch(e){}
             }
+
+            playWhoosh() {
+                if (!this.ctx || !STATE.soundEnabled) return;
+                try {
+                    const osc = this.ctx.createOscillator();
+                    const gain = this.ctx.createGain();
+                    osc.type = 'sine';
+                    osc.frequency.setValueAtTime(200, this.ctx.currentTime);
+                    osc.frequency.exponentialRampToValueAtTime(800, this.ctx.currentTime + 0.4);
+                    gain.gain.setValueAtTime(0.25, this.ctx.currentTime);
+                    gain.gain.exponentialRampToValueAtTime(0.001, this.ctx.currentTime + 0.45);
+                    osc.connect(gain);
+                    gain.connect(this.ctx.destination);
+                    osc.start();
+                    osc.stop(this.ctx.currentTime + 0.45);
+                } catch(e){}
+            }
         }
         const fireAudio = new FireAudioSystem();
 
         /* ====================================================================
-         * 3. THREE.JS 3D PROCEDURAL FIRE PARTICLE ENGINE
+         * 3. THREE.JS 3D PROCEDURAL FIRE WALL & PARTICLE SYSTEM
          * ==================================================================== */
         const container = document.getElementById('canvas-container');
         const scene = new THREE.Scene();
@@ -614,32 +634,74 @@
 
         const fireTexture = createFireTexture();
 
-        const particleCount = 1200;
+        // MASTER FIRE WALL GROUP (Contains 3D Flame Mesh, Core Orb, Torus Ring & Streaming Particles)
+        const fireWallGroup = new THREE.Group();
+        scene.add(fireWallGroup);
+
+        // 1. Curved Glowing Fire Wall Sheet Geometry
+        const wallGeom = new THREE.PlaneGeometry(2.4, 2.0, 32, 16);
+        // Curve the wall slightly along Z
+        const wallPos = wallGeom.attributes.position;
+        for (let i = 0; i < wallPos.count; i++) {
+            const x = wallPos.getX(i);
+            wallPos.setZ(i, -Math.pow(x, 2) * 0.15);
+        }
+        wallGeom.computeVertexNormals();
+
+        const wallMat = new THREE.MeshBasicMaterial({
+            map: fireTexture,
+            transparent: true,
+            opacity: 0.85,
+            side: THREE.DoubleSide,
+            blending: THREE.AdditiveBlending
+        });
+        const fireWallMesh = new THREE.Mesh(wallGeom, wallMat);
+        fireWallMesh.position.set(0, 0.6, 0);
+        fireWallGroup.add(fireWallMesh);
+
+        // 2. Core Orb
+        const coreGeom = new THREE.SphereGeometry(0.5, 32, 32);
+        const coreMat = new THREE.MeshBasicMaterial({
+            color: 0xffaa00,
+            wireframe: true,
+            transparent: true,
+            opacity: 0.65
+        });
+        const coreMesh = new THREE.Mesh(coreGeom, coreMat);
+        fireWallGroup.add(coreMesh);
+
+        // 3. Shockwave Torus Ring
+        const ringGeom = new THREE.TorusGeometry(1.4, 0.06, 16, 64);
+        const ringMat = new THREE.MeshBasicMaterial({ color: 0xff0044, transparent: true, opacity: 0.6 });
+        const shockRing = new THREE.Mesh(ringGeom, ringMat);
+        shockRing.rotation.x = Math.PI / 2;
+        fireWallGroup.add(shockRing);
+
+        // 4. Dense Upward Streaming Flame Particles
+        const particleCount = 1400;
         const particleGeom = new THREE.BufferGeometry();
         const positions = new Float32Array(particleCount * 3);
         const velocities = new Float32Array(particleCount * 3);
         const lifetimes = new Float32Array(particleCount);
         const maxLifetimes = new Float32Array(particleCount);
-        const sizes = new Float32Array(particleCount);
 
         for (let i = 0; i < particleCount; i++) {
-            positions[i * 3] = (Math.random() - 0.5) * 0.2;
-            positions[i * 3 + 1] = (Math.random() - 0.5) * 0.2;
-            positions[i * 3 + 2] = (Math.random() - 0.5) * 0.2;
+            positions[i * 3] = (Math.random() - 0.5) * 2.2;
+            positions[i * 3 + 1] = (Math.random() - 0.5) * 1.5;
+            positions[i * 3 + 2] = (Math.random() - 0.5) * 0.4;
 
-            velocities[i * 3] = (Math.random() - 0.5) * 0.05;
-            velocities[i * 3 + 1] = Math.random() * 0.08 + 0.03;
-            velocities[i * 3 + 2] = (Math.random() - 0.5) * 0.05;
+            velocities[i * 3] = (Math.random() - 0.5) * 0.06;
+            velocities[i * 3 + 1] = Math.random() * 0.12 + 0.05;
+            velocities[i * 3 + 2] = (Math.random() - 0.5) * 0.06;
 
             lifetimes[i] = Math.random();
-            maxLifetimes[i] = 0.8 + Math.random() * 0.8;
-            sizes[i] = Math.random() * 0.4 + 0.2;
+            maxLifetimes[i] = 0.7 + Math.random() * 0.8;
         }
 
         particleGeom.setAttribute('position', new THREE.BufferAttribute(positions, 3));
 
         const particleMat = new THREE.PointsMaterial({
-            size: 0.6,
+            size: 0.65,
             map: fireTexture,
             transparent: true,
             opacity: 0.9,
@@ -649,26 +711,70 @@
         });
 
         const particleSystem = new THREE.Points(particleGeom, particleMat);
-        scene.add(particleSystem);
-
-        const coreGeom = new THREE.SphereGeometry(0.6, 32, 32);
-        const coreMat = new THREE.MeshBasicMaterial({
-            color: 0xffaa00,
-            wireframe: true,
-            transparent: true,
-            opacity: 0.65
-        });
-        const coreMesh = new THREE.Mesh(coreGeom, coreMat);
-        scene.add(coreMesh);
-
-        const ringGeom = new THREE.TorusGeometry(1.2, 0.06, 16, 64);
-        const ringMat = new THREE.MeshBasicMaterial({ color: 0xff0044, transparent: true, opacity: 0.6 });
-        const shockRing = new THREE.Mesh(ringGeom, ringMat);
-        shockRing.rotation.x = Math.PI / 2;
-        scene.add(shockRing);
+        fireWallGroup.add(particleSystem);
 
         /* ====================================================================
-         * 4. AUTOMATIC HOVER-DWELL SELECTION SYSTEM FOR MENU BUTTONS
+         * 4. GESTURE ACTIONS: THROW UPWARD & RECALL TO HAND
+         * ==================================================================== */
+        function throwFireUpward() {
+            if (STATE.fireState === 'THROWN_UP') return;
+            STATE.fireState = 'THROWN_UP';
+            document.getElementById('fire-state-badge').innerText = "FIRE WALL: THROWN UPWARD!";
+            document.getElementById('hud-status').innerText = "🔥 FIRE WALL LAUNCHED UPWARD!";
+            document.getElementById('hud-status').style.color = "#ffaa00";
+
+            fireAudio.playWhoosh();
+
+            // Animate launching Fire Wall upward into the sky
+            gsap.to(fireWallGroup.position, {
+                x: STATE.handPos.x * 0.5,
+                y: 5.2,
+                z: -1.5,
+                duration: 1.0,
+                ease: "power2.out"
+            });
+
+            gsap.to(fireWallGroup.scale, {
+                x: 1.6,
+                y: 1.6,
+                z: 1.6,
+                duration: 1.0,
+                ease: "power2.out"
+            });
+        }
+
+        function recallFireToHand() {
+            if (STATE.fireState === 'ATTACHED') return;
+            STATE.fireState = 'RETURNING';
+            document.getElementById('fire-state-badge').innerText = "FIRE WALL: RECALLING TO HAND...";
+            document.getElementById('hud-status').innerText = "⚡ FIRE RECALLED TO HAND!";
+            document.getElementById('hud-status').style.color = "var(--fire-primary)";
+
+            fireAudio.playWhoosh();
+
+            gsap.to(fireWallGroup.position, {
+                x: STATE.handPos.x,
+                y: STATE.handPos.y,
+                z: STATE.handPos.z,
+                duration: 0.85,
+                ease: "power3.inOut",
+                onComplete: () => {
+                    STATE.fireState = 'ATTACHED';
+                    document.getElementById('fire-state-badge').innerText = "FIRE WALL: ATTACHED TO HAND";
+                }
+            });
+
+            gsap.to(fireWallGroup.scale, {
+                x: 1.0,
+                y: 1.0,
+                z: 1.0,
+                duration: 0.85,
+                ease: "power3.inOut"
+            });
+        }
+
+        /* ====================================================================
+         * 5. AUTOMATIC HOVER-DWELL SELECTION SYSTEM FOR MENU BUTTONS
          * ==================================================================== */
         const flamePointer = document.getElementById('flame-pointer');
         const flameProgressRing = document.getElementById('flame-progress-ring');
@@ -713,25 +819,34 @@
         }
 
         /* ====================================================================
-         * 5. AI WEBCAM HAND GESTURE RECOGNITION (MEDIAPIPE)
+         * 6. AI WEBCAM HAND GESTURE RECOGNITION (MEDIAPIPE)
          * ==================================================================== */
         const webcamVideo = document.getElementById('webcam-video');
         const webcamCanvas = document.getElementById('webcam-canvas');
         const wCtx = webcamCanvas.getContext('2d');
         const hudStatus = document.getElementById('hud-status');
 
-        let handsDetector = new Hands({
-            locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${file}`
-        });
+        let handsDetector;
+        try {
+            if (typeof Hands !== 'undefined') {
+                handsDetector = new Hands({
+                    locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${file}`
+                });
 
-        handsDetector.setOptions({
-            maxNumHands: 1,
-            modelComplexity: 1,
-            minDetectionConfidence: 0.6,
-            minTrackingConfidence: 0.6
-        });
+                handsDetector.setOptions({
+                    maxNumHands: 1,
+                    modelComplexity: 1,
+                    minDetectionConfidence: 0.6,
+                    minTrackingConfidence: 0.6
+                });
 
-        handsDetector.onResults(onHandResults);
+                handsDetector.onResults(onHandResults);
+            } else {
+                console.warn("MediaPipe Hands class is not defined. Offline or CDN failed to load.");
+            }
+        } catch (e) {
+            console.error("Failed to initialize MediaPipe Hands:", e);
+        }
 
         function drawHandSkeleton(landmarks) {
             wCtx.clearRect(0, 0, webcamCanvas.width, webcamCanvas.height);
@@ -769,13 +884,16 @@
         }
 
         function onHandResults(results) {
+            const now = Date.now();
+
             if (results.multiHandLandmarks && results.multiHandLandmarks.length > 0) {
                 const landmarks = results.multiHandLandmarks[0];
                 drawHandSkeleton(landmarks);
 
+                const wasHandDetectedBefore = STATE.handDetected;
                 STATE.handDetected = true;
 
-                // Index Tip (8) & Middle Tip (12)
+                // Index Tip (8) & Middle Tip (12) & Wrist (0)
                 const indexPt = landmarks[8];
                 const middlePt = landmarks[12];
                 const wristPt = landmarks[0];
@@ -783,13 +901,21 @@
                 const screenX = (1 - indexPt.x) * window.innerWidth;
                 const screenY = indexPt.y * window.innerHeight;
 
-                STATE.handPos.x = ((1 - indexPt.x) * 2 - 1) * 4.5;
-                STATE.handPos.y = -(indexPt.y * 2 - 1) * 3.0;
+                const currentHandY = -(indexPt.y * 2 - 1) * 3.0;
+                const currentHandX = ((1 - indexPt.x) * 2 - 1) * 4.5;
+
+                // Calculate vertical velocity for Upward Throw Gesture
+                const dt = Math.max((now - STATE.lastHandTime) / 1000, 0.016);
+                STATE.handVelocityY = (currentHandY - STATE.lastHandY) / dt;
+
+                STATE.handPos.x = currentHandX;
+                STATE.handPos.y = currentHandY;
+                STATE.lastHandY = currentHandY;
+                STATE.lastHandTime = now;
 
                 const handSpan = Math.sqrt(
                     Math.pow(indexPt.x - wristPt.x, 2) + Math.pow(indexPt.y - wristPt.y, 2)
                 );
-                
                 STATE.handDistance = THREE.MathUtils.clamp(handSpan * 3.2, 0.6, 2.2);
 
                 flamePointer.style.display = 'block';
@@ -798,6 +924,16 @@
 
                 // Automatic Touchless Hover-Dwell Selection on Buttons
                 updateHoverDwell(screenX, screenY);
+
+                // --- GESTURE 1: UPWARD THROW DETECTED ("UPAR FEKO") ---
+                if (STATE.handVelocityY > 3.8 && STATE.fireState === 'ATTACHED') {
+                    throwFireUpward();
+                }
+
+                // --- GESTURE 2: RECALL TO HAND WHEN HAND SHOWS AGAIN ("BAPAS HAND KARU TO MERI HAND PAR AA JAYE") ---
+                if (!wasHandDetectedBefore && STATE.fireState === 'THROWN_UP') {
+                    recallFireToHand();
+                }
 
                 // Two Finger Join Gesture (Index 8 + Middle 12) => Fire Burst Explosion
                 const dx = middlePt.x - indexPt.x;
@@ -822,8 +958,10 @@
                         STATE.isExploding = false;
                         flamePointer.classList.remove('bursting');
                     }
-                    hudStatus.innerText = "AIR GESTURE: TOUCHLESS ACTIVE";
-                    hudStatus.style.color = "var(--fire-secondary)";
+                    if (STATE.fireState === 'ATTACHED') {
+                        hudStatus.innerText = "AIR GESTURE: HAND FIRE WALL ACTIVE";
+                        hudStatus.style.color = "var(--fire-secondary)";
+                    }
                 }
 
                 const zoomPercent = Math.round((1 / STATE.handDistance) * 100);
@@ -840,6 +978,11 @@
         }
 
         async function initCamera() {
+            if (typeof Camera === 'undefined' || !handsDetector) {
+                console.warn("MediaPipe Camera or Hands utility is not available.");
+                hudStatus.innerText = "AI HAND TRACKING: NOT AVAILABLE (OFFLINE)";
+                return;
+            }
             try {
                 const stream = await navigator.mediaDevices.getUserMedia({ video: { width: 640, height: 480 } });
                 webcamVideo.srcObject = stream;
@@ -847,14 +990,17 @@
 
                 const cameraUtilsInstance = new Camera(webcamVideo, {
                     onFrame: async () => {
-                        await handsDetector.send({ image: webcamVideo });
+                        if (handsDetector) {
+                            await handsDetector.send({ image: webcamVideo });
+                        }
                     },
                     width: 320,
                     height: 240
                 });
                 cameraUtilsInstance.start();
             } catch(e) {
-                console.warn("Camera auto-initialization pending permission.");
+                console.warn("Camera auto-initialization pending permission or failed:", e);
+                hudStatus.innerText = "AI HAND TRACKING: NO CAMERA PERMISSION";
             }
         }
 
@@ -864,7 +1010,7 @@
         });
 
         /* ====================================================================
-         * 6. UI CONTROLS & EVENT HANDLERS
+         * 7. UI CONTROLS & EVENT HANDLERS
          * ==================================================================== */
         document.getElementById('start-btn').addEventListener('click', () => {
             fireAudio.init();
@@ -877,13 +1023,16 @@
             STATE.initialized = true;
         });
 
-        document.querySelectorAll('.dock-btn[data-mode]').forEach(btn => {
-            btn.addEventListener('click', () => {
-                document.querySelectorAll('.dock-btn[data-mode]').forEach(b => b.classList.remove('active'));
-                btn.classList.add('active');
-                STATE.mode = btn.dataset.mode;
-                document.getElementById('fire-mode-badge').innerText = `MODE: FLAME ${STATE.mode.toUpperCase()}`;
-            });
+        document.getElementById('action-attach-btn').addEventListener('click', () => {
+            recallFireToHand();
+        });
+
+        document.getElementById('action-throw-btn').addEventListener('click', () => {
+            throwFireUpward();
+        });
+
+        document.getElementById('action-recall-btn').addEventListener('click', () => {
+            recallFireToHand();
         });
 
         document.getElementById('color-btn').addEventListener('click', () => {
@@ -892,6 +1041,7 @@
 
             particleMat.color.setStyle(pal.inner);
             coreMat.color.setStyle(pal.inner);
+            wallMat.color.setStyle(pal.inner);
             shockRing.material.color.setStyle(pal.outer);
             firePointLight.color.setStyle(pal.inner);
 
@@ -905,7 +1055,7 @@
         });
 
         /* ====================================================================
-         * 7. MAIN 60 FPS RENDER LOOP
+         * 8. MAIN 60 FPS RENDER LOOP
          * ==================================================================== */
         const clock = new THREE.Clock();
 
@@ -915,27 +1065,32 @@
             const delta = clock.getDelta();
             STATE.time += delta;
 
-            const targetX = STATE.handDetected ? STATE.handPos.x : Math.sin(STATE.time * 1.5) * 1.5;
-            const targetY = STATE.handDetected ? STATE.handPos.y : Math.cos(STATE.time * 1.2) * 0.8;
+            // Update Fire Wall position according to state
+            if (STATE.fireState === 'ATTACHED') {
+                const targetX = (STATE.handDetected || mouseActive) ? STATE.handPos.x : Math.sin(STATE.time * 1.5) * 1.5;
+                const targetY = (STATE.handDetected || mouseActive) ? STATE.handPos.y : Math.cos(STATE.time * 1.2) * 0.8;
 
-            coreMesh.position.x += (targetX - coreMesh.position.x) * 0.15;
-            coreMesh.position.y += (targetY - coreMesh.position.y) * 0.15;
+                fireWallGroup.position.x += (targetX - fireWallGroup.position.x) * 0.18;
+                fireWallGroup.position.y += (targetY - fireWallGroup.position.y) * 0.18;
+                fireWallGroup.position.z += (0 - fireWallGroup.position.z) * 0.18;
+            } else if (STATE.fireState === 'THROWN_UP') {
+                // Gently hover in sky
+                fireWallGroup.position.y = 5.2 + Math.sin(STATE.time * 2.5) * 0.25;
+            }
 
-            firePointLight.position.copy(coreMesh.position);
-            shockRing.position.copy(coreMesh.position);
+            firePointLight.position.copy(fireWallGroup.position);
 
+            // Camera Zoom
             const targetCamZ = STATE.handDetected ? (8 / STATE.handDistance) : 8;
             camera.position.z += (targetCamZ - camera.position.z) * 0.08;
 
-            coreMesh.rotation.y += delta * 2.0;
-            coreMesh.rotation.x += delta * 1.2;
+            coreMesh.rotation.y += delta * 2.5;
+            coreMesh.rotation.x += delta * 1.4;
+            fireWallMesh.rotation.z = Math.sin(STATE.time * 3) * 0.08;
 
             let burstMultiplier = STATE.isExploding ? 4.0 : 1.0;
 
-            if (STATE.mode === 'vortex') {
-                shockRing.rotation.z += delta * 4.0;
-            }
-
+            // Stream Upward Flame Particles from Fire Wall Base
             const posAttr = particleGeom.attributes.position;
             const pArray = posAttr.array;
 
@@ -945,31 +1100,22 @@
                 if (lifetimes[i] >= maxLifetimes[i]) {
                     lifetimes[i] = 0;
 
-                    let radius = STATE.mode === 'vortex' ? 0.8 : 0.2;
-                    let angle = Math.random() * Math.PI * 2;
+                    pArray[i * 3] = (Math.random() - 0.5) * 2.2;
+                    pArray[i * 3 + 1] = -0.8 + (Math.random() - 0.5) * 0.2;
+                    pArray[i * 3 + 2] = (Math.random() - 0.5) * 0.4;
 
-                    pArray[i * 3] = coreMesh.position.x + Math.cos(angle) * radius * Math.random();
-                    pArray[i * 3 + 1] = coreMesh.position.y + (Math.random() - 0.5) * 0.2;
-                    pArray[i * 3 + 2] = coreMesh.position.z + Math.sin(angle) * radius * Math.random();
-
-                    if (STATE.mode === 'beam') {
-                        velocities[i * 3] = (Math.random() - 0.5) * 0.1;
-                        velocities[i * 3 + 1] = Math.random() * 0.25 + 0.1;
-                        velocities[i * 3 + 2] = (Math.random() - 0.5) * 0.1;
-                    } else {
-                        velocities[i * 3] = (Math.random() - 0.5) * 0.08 * burstMultiplier;
-                        velocities[i * 3 + 1] = (Math.random() * 0.1 + 0.04) * burstMultiplier;
-                        velocities[i * 3 + 2] = (Math.random() - 0.5) * 0.08 * burstMultiplier;
-                    }
+                    velocities[i * 3] = (Math.random() - 0.5) * 0.08 * burstMultiplier;
+                    velocities[i * 3 + 1] = (Math.random() * 0.14 + 0.06) * burstMultiplier;
+                    velocities[i * 3 + 2] = (Math.random() - 0.5) * 0.08 * burstMultiplier;
                 } else {
-                    pArray[i * 3] += velocities[i * 3] + Math.sin(STATE.time * 5 + i) * 0.005;
+                    pArray[i * 3] += velocities[i * 3] + Math.sin(STATE.time * 6 + i) * 0.006;
                     pArray[i * 3 + 1] += velocities[i * 3 + 1];
                     pArray[i * 3 + 2] += velocities[i * 3 + 2];
                 }
             }
 
             posAttr.needsUpdate = true;
-            fireAudio.updateIntensity(STATE.handDetected ? 0.8 : 0.2);
+            fireAudio.updateIntensity((STATE.handDetected || mouseActive) ? 0.85 : 0.25);
 
             renderer.render(scene, camera);
         }
@@ -980,6 +1126,74 @@
             camera.aspect = window.innerWidth / window.innerHeight;
             camera.updateProjectionMatrix();
             renderer.setSize(window.innerWidth, window.innerHeight);
+        });
+
+        // Mouse Fallback Interaction (when webcam hand-tracking is unavailable/not detecting)
+        let mouseActive = false;
+
+        document.addEventListener('mousemove', (e) => {
+            if (STATE.handDetected) return; // Hand tracking takes priority
+
+            mouseActive = true;
+            const screenX = e.clientX;
+            const screenY = e.clientY;
+
+            // Map screen coordinates to 3D scene space for the fire wall group
+            const currentHandX = (screenX / window.innerWidth * 2 - 1) * 4.5;
+            const currentHandY = -(screenY / window.innerHeight * 2 - 1) * 3.0;
+
+            STATE.handPos.x = currentHandX;
+            STATE.handPos.y = currentHandY;
+            STATE.lastHandY = currentHandY;
+            STATE.lastHandTime = Date.now();
+
+            flamePointer.style.display = 'block';
+            flamePointer.style.left = `${screenX}px`;
+            flamePointer.style.top = `${screenY}px`;
+
+            updateHoverDwell(screenX, screenY);
+
+            if (STATE.fireState === 'ATTACHED') {
+                hudStatus.innerText = "MOUSE CONTROL: ACTIVE (NO WEBCAM)";
+                hudStatus.style.color = "var(--fire-secondary)";
+            }
+        });
+
+        document.addEventListener('mouseleave', () => {
+            if (STATE.handDetected) return;
+            mouseActive = false;
+            flamePointer.style.display = 'none';
+            cancelHoverDwell();
+            if (STATE.fireState === 'ATTACHED') {
+                hudStatus.innerText = "MOUSE CONTROL: INACTIVE";
+                hudStatus.style.color = "#ffaa00";
+            }
+        });
+
+        document.addEventListener('click', (e) => {
+            if (STATE.handDetected) return;
+            // Do not trigger explosions when clicking buttons or menus
+            if (e.target.closest('.dock-btn, .start-btn, #start-btn')) return;
+
+            if (STATE.fireState === 'ATTACHED') {
+                if (!STATE.isExploding) {
+                    STATE.isExploding = true;
+                    flamePointer.classList.add('bursting');
+                    hudStatus.innerText = "MOUSE CLICK: BLAST EXPLOSION!";
+                    hudStatus.style.color = "#ff0044";
+                    fireAudio.playExplosion();
+
+                    gsap.fromTo(shockRing.scale,
+                        { x: 0.1, y: 0.1, z: 0.1 },
+                        { x: 3.5, y: 3.5, z: 3.5, duration: 0.6, ease: "power2.out", onComplete: () => {
+                            STATE.isExploding = false;
+                            flamePointer.classList.remove('bursting');
+                            hudStatus.innerText = "MOUSE CONTROL: ACTIVE (NO WEBCAM)";
+                            hudStatus.style.color = "var(--fire-secondary)";
+                        }}
+                    );
+                }
+            }
         });
     </script>
 </body>

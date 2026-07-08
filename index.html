@@ -765,7 +765,7 @@
             <!-- Stats Bar -->
             <div class="stats-grid">
                 <div class="stat-card">
-                    <div class="stat-number">5</div>
+                    <div class="stat-number">6</div>
                     <div class="stat-label">Interactive Demos</div>
                 </div>
                 <div class="stat-card">
@@ -927,6 +927,32 @@
                         </p>
                         <div class="card-footer">
                             <a href="animated-input.html" class="launch-btn">
+                                LAUNCH EXPERIENCE
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>
+                            </a>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Card 6: Fluid Spirit Water Particle Animation -->
+                <div class="card" data-category="canvas" data-title="fluid spirit interactive shower water particle animation fluid simulation silhouette">
+                    <div class="card-preview">
+                        <canvas class="preview-canvas" id="prev-canvas-6"></canvas>
+                        <div class="preview-badge">CANVAS PARTICLES</div>
+                    </div>
+                    <div class="card-body">
+                        <div class="card-tags">
+                            <span class="tag highlight">Water Simulation</span>
+                            <span class="tag">Human Silhouette</span>
+                            <span class="tag">Liquid SFX Audio</span>
+                            <span class="tag">Auto-Cycle Modes</span>
+                        </div>
+                        <h3 class="card-title">Fluid Spirit Shower Animation</h3>
+                        <p class="card-desc">
+                            Interactive water shower particle simulation that coalesces into a glowing human silhouette. Experience dynamic gravity, attraction speed controls, and a synthesized water soundscape.
+                        </p>
+                        <div class="card-footer">
+                            <a href="water_animate.html" class="launch-btn">
                                 LAUNCH EXPERIENCE
                                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>
                             </a>
@@ -1301,6 +1327,40 @@
                     requestAnimationFrame(renderC5);
                 }
                 renderC5();
+            }
+
+            // Card 6: Fluid Spirit Shower Preview
+            const c6 = document.getElementById('prev-canvas-6');
+            if (c6) {
+                const ctx6 = c6.getContext('2d');
+                let pts = Array.from({ length: 40 }, () => ({
+                    x: Math.random() * 200,
+                    y: Math.random() * 200,
+                    size: Math.random() * 2 + 1,
+                    vy: Math.random() * 3 + 2
+                }));
+                function renderC6() {
+                    c6.width = c6.parentElement.clientWidth;
+                    c6.height = c6.parentElement.clientHeight;
+                    ctx6.fillStyle = '#05060c';
+                    ctx6.fillRect(0, 0, c6.width, c6.height);
+
+                    const cx = c6.width / 2;
+                    pts.forEach(p => {
+                        p.y += p.vy;
+                        p.x += Math.sin(p.y * 0.05) * 0.5;
+                        if (p.y > c6.height - 10) {
+                            p.y = 10;
+                            p.x = cx + (Math.random() - 0.5) * 50;
+                        }
+                        ctx6.fillStyle = '#00f0ff';
+                        ctx6.beginPath();
+                        ctx6.arc(p.x, p.y, p.size, 0, Math.PI * 2);
+                        ctx6.fill();
+                    });
+                    requestAnimationFrame(renderC6);
+                }
+                renderC6();
             }
         }
         initCardPreviews();

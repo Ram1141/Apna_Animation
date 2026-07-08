@@ -1,0 +1,1421 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Fluid Spirit - Interactive Shower & Water Particle Animation</title>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;700;900&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --primary: #00f0ff;
+            --primary-glow: rgba(0, 240, 255, 0.4);
+            --bg-dark: #05060c;
+            --card-bg: rgba(10, 15, 30, 0.7);
+            --card-border: rgba(255, 255, 255, 0.08);
+            --text-main: #ffffff;
+            --text-muted: rgba(255, 255, 255, 0.5);
+            --accent-purple: #9d4edd;
+            --accent-green: #00f5d4;
+            --accent-amber: #ff9f1c;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            min-height: 100vh;
+            background: radial-gradient(circle at 70% 30%, #0d1226 0%, var(--bg-dark) 70%);
+            font-family: 'Outfit', sans-serif;
+            color: var(--text-main);
+            overflow: hidden;
+            display: flex;
+        }
+
+        /* App Container */
+        .app-container {
+            display: flex;
+            width: 100vw;
+            height: 100vh;
+            position: relative;
+        }
+
+        /* Sidebar Glass Control Panel */
+        .sidebar {
+            width: 380px;
+            height: 100%;
+            background: var(--card-bg);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            border-right: 1px solid var(--card-border);
+            padding: 30px;
+            display: flex;
+            flex-direction: column;
+            gap: 24px;
+            z-index: 100;
+            overflow-y: auto;
+            box-shadow: 10px 0 30px rgba(0, 0, 0, 0.5);
+        }
+
+        /* Title Area */
+        .brand {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+
+        .brand h1 {
+            font-size: 28px;
+            font-weight: 900;
+            letter-spacing: 2px;
+            background: linear-gradient(135deg, var(--primary), var(--accent-purple));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            text-transform: uppercase;
+        }
+
+        .brand p {
+            font-size: 13px;
+            color: var(--text-muted);
+            line-height: 1.4;
+        }
+
+        /* Hindi Instructions Badge */
+        .hindi-badge {
+            background: rgba(0, 240, 255, 0.08);
+            border: 1px solid rgba(0, 240, 255, 0.2);
+            padding: 12px;
+            border-radius: 12px;
+            font-size: 13px;
+            line-height: 1.5;
+            color: #b0f2ff;
+        }
+
+        /* Progress Card & Timer */
+        .progress-card {
+            background: rgba(255, 255, 255, 0.03);
+            border: 1px solid var(--card-border);
+            border-radius: 18px;
+            padding: 20px;
+            display: flex;
+            align-items: center;
+            gap: 20px;
+            position: relative;
+        }
+
+        .timer-circle {
+            position: relative;
+            width: 70px;
+            height: 70px;
+            flex-shrink: 0;
+        }
+
+        .timer-circle svg {
+            width: 70px;
+            height: 70px;
+            transform: rotate(-90deg);
+        }
+
+        .timer-circle circle {
+            fill: none;
+            stroke-width: 5;
+        }
+
+        .timer-circle .bg-circle {
+            stroke: rgba(255, 255, 255, 0.08);
+        }
+
+        .timer-circle .progress-bar-svg {
+            stroke: var(--primary);
+            stroke-dasharray: 220;
+            stroke-dashoffset: 0;
+            transition: stroke-dashoffset 0.1s linear;
+        }
+
+        .timer-value {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            font-size: 16px;
+            font-weight: 700;
+            color: var(--text-main);
+        }
+
+        .progress-details {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+
+        .progress-details .phase-label {
+            font-size: 11px;
+            letter-spacing: 1.5px;
+            color: var(--text-muted);
+            text-transform: uppercase;
+        }
+
+        .progress-details .phase-name {
+            font-size: 15px;
+            font-weight: 700;
+            color: var(--primary);
+            text-shadow: 0 0 10px var(--primary-glow);
+        }
+
+        /* Section Headings */
+        .section-title {
+            font-size: 12px;
+            font-weight: 700;
+            letter-spacing: 2px;
+            text-transform: uppercase;
+            color: var(--text-muted);
+            border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+            padding-bottom: 6px;
+            margin-top: 10px;
+        }
+
+        /* Controls / Sliders */
+        .control-group {
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+        }
+
+        .slider-wrapper {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .slider-header {
+            display: flex;
+            justify-content: space-between;
+            font-size: 13px;
+        }
+
+        .slider-header label {
+            font-weight: 500;
+            color: rgba(255, 255, 255, 0.85);
+        }
+
+        .slider-header span {
+            color: var(--primary);
+            font-weight: 700;
+        }
+
+        input[type="range"] {
+            -webkit-appearance: none;
+            width: 100%;
+            height: 6px;
+            border-radius: 3px;
+            background: rgba(255, 255, 255, 0.1);
+            outline: none;
+        }
+
+        input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            width: 18px;
+            height: 18px;
+            border-radius: 50%;
+            background: var(--primary);
+            cursor: pointer;
+            box-shadow: 0 0 8px var(--primary-glow);
+            transition: transform 0.1s;
+        }
+
+        input[type="range"]::-webkit-slider-thumb:hover {
+            transform: scale(1.2);
+        }
+
+        /* Switches / Toggles */
+        .toggle-wrapper {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background: rgba(255, 255, 255, 0.02);
+            padding: 12px 16px;
+            border-radius: 12px;
+            border: 1px solid rgba(255, 255, 255, 0.04);
+        }
+
+        .toggle-wrapper span {
+            font-size: 14px;
+            font-weight: 500;
+        }
+
+        .switch {
+            position: relative;
+            display: inline-block;
+            width: 46px;
+            height: 24px;
+        }
+
+        .switch input {
+            opacity: 0;
+            width: 0;
+            height: 0;
+        }
+
+        .slider-switch {
+            position: absolute;
+            cursor: pointer;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: rgba(255, 255, 255, 0.1);
+            transition: .3s;
+            border-radius: 24px;
+        }
+
+        .slider-switch:before {
+            position: absolute;
+            content: "";
+            height: 18px;
+            width: 18px;
+            left: 3px;
+            bottom: 3px;
+            background-color: white;
+            transition: .3s;
+            border-radius: 50%;
+        }
+
+        input:checked + .slider-switch {
+            background-color: var(--primary);
+        }
+
+        input:checked + .slider-switch:before {
+            transform: translateX(22px);
+            box-shadow: 0 0 8px var(--primary-glow);
+        }
+
+        /* Buttons Grid */
+        .btn-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 10px;
+        }
+
+        .btn {
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            padding: 12px;
+            border-radius: 12px;
+            color: #fff;
+            font-family: 'Outfit', sans-serif;
+            font-size: 13px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
+        }
+
+        .btn:hover {
+            background: rgba(255, 255, 255, 0.12);
+            border-color: rgba(255, 255, 255, 0.25);
+            transform: translateY(-1px);
+        }
+
+        .btn.active {
+            background: linear-gradient(135deg, rgba(0, 240, 255, 0.2), rgba(157, 78, 221, 0.2));
+            border-color: var(--primary);
+            box-shadow: 0 0 12px rgba(0, 240, 255, 0.25);
+            color: #fff;
+        }
+
+        .btn-sound {
+            background: linear-gradient(135deg, rgba(0, 240, 255, 0.1), rgba(0, 245, 212, 0.1));
+            border-color: rgba(0, 240, 255, 0.3);
+            grid-column: span 2;
+            padding: 14px;
+            font-size: 14px;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+        }
+
+        .btn-sound.playing {
+            background: linear-gradient(135deg, rgba(0, 245, 212, 0.3), rgba(0, 240, 255, 0.3));
+            border-color: var(--accent-green);
+            box-shadow: 0 0 15px rgba(0, 245, 212, 0.3);
+        }
+
+        /* Palette Colors */
+        .palette-container {
+            display: flex;
+            gap: 12px;
+        }
+
+        .color-dot {
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            cursor: pointer;
+            border: 2px solid transparent;
+            transition: all 0.2s;
+            position: relative;
+        }
+
+        .color-dot:hover {
+            transform: scale(1.15);
+        }
+
+        .color-dot.active {
+            border-color: #fff;
+            box-shadow: 0 0 12px rgba(255,255,255,0.4);
+            transform: scale(1.1);
+        }
+
+        .dot-cyan { background: #00f0ff; }
+        .dot-purple { background: #9d4edd; }
+        .dot-green { background: #00f5d4; }
+        .dot-amber { background: #ff9f1c; }
+
+        /* Canvas Stage Area */
+        .stage {
+            flex-grow: 1;
+            height: 100%;
+            position: relative;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: transparent;
+        }
+
+        canvas {
+            display: block;
+            width: 100%;
+            height: 100%;
+            z-index: 10;
+        }
+
+        /* Instruction overlay on canvas */
+        .canvas-tip {
+            position: absolute;
+            bottom: 24px;
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 20;
+            background: rgba(10, 12, 22, 0.8);
+            border: 1px solid var(--card-border);
+            padding: 8px 16px;
+            border-radius: 20px;
+            font-size: 12px;
+            color: var(--text-muted);
+            letter-spacing: 1px;
+            pointer-events: none;
+            backdrop-filter: blur(8px);
+            text-transform: uppercase;
+        }
+
+        /* Scrollbar custom style */
+        .sidebar::-webkit-scrollbar {
+            width: 6px;
+        }
+        .sidebar::-webkit-scrollbar-track {
+            background: transparent;
+        }
+        .sidebar::-webkit-scrollbar-thumb {
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 3px;
+        }
+        .sidebar::-webkit-scrollbar-thumb:hover {
+            background: rgba(255, 255, 255, 0.2);
+        }
+    </style>
+</head>
+<body>
+    <div class="app-container">
+        <!-- Sidebar Controls -->
+        <aside class="sidebar">
+            <div class="brand">
+                <h1>Fluid Spirit</h1>
+                <p>Interactive Water Shower Particle Simulation & Visualizer</p>
+            </div>
+
+
+
+            <!-- Timer / Progress Widget -->
+            <div class="progress-card">
+                <div class="timer-circle">
+                    <svg>
+                        <circle class="bg-circle" cx="35" cy="35" r="32"></circle>
+                        <circle class="progress-bar-svg" cx="35" cy="35" r="32" id="progressBar"></circle>
+                    </svg>
+                    <div class="timer-value" id="timerText">00s</div>
+                </div>
+                <div class="progress-details">
+                    <span class="phase-label" id="phaseSub">Current State</span>
+                    <span class="phase-name" id="phaseName">Shower Stream</span>
+                </div>
+            </div>
+
+            <!-- Sound Controller -->
+            <button class="btn btn-sound" id="btnSound" onclick="toggleSound()">
+                🔊 Enable Water Soundscape
+            </button>
+
+            <!-- Configuration Options -->
+            <div class="section-title">Simulation Settings</div>
+            <div class="control-group">
+                <!-- Auto Cycle Toggle -->
+                <div class="toggle-wrapper">
+                    <span>Auto-Cycle (30s)</span>
+                    <label class="switch">
+                        <input type="checkbox" id="chkAuto" checked onchange="toggleAutoCycle()">
+                        <span class="slider-switch"></span>
+                    </label>
+                </div>
+
+                <!-- Particle Density -->
+                <div class="slider-wrapper">
+                    <div class="slider-header">
+                        <label for="sldDensity">Particle Count</label>
+                        <span id="valDensity">2500</span>
+                    </div>
+                    <input type="range" id="sldDensity" min="1000" max="4000" step="100" value="2500" oninput="changeDensity(this.value)">
+                </div>
+
+                <!-- Gravity Strength -->
+                <div class="slider-wrapper">
+                    <div class="slider-header">
+                        <label for="sldGravity">Gravity (Water Speed)</label>
+                        <span id="valGravity">0.4</span>
+                    </div>
+                    <input type="range" id="sldGravity" min="0.1" max="0.8" step="0.05" value="0.4" oninput="changeGravity(this.value)">
+                </div>
+
+                <!-- Assembly Attraction Force -->
+                <div class="slider-wrapper">
+                    <div class="slider-header">
+                        <label for="sldAttract">Attraction Speed</label>
+                        <span id="valAttract">0.05</span>
+                    </div>
+                    <input type="range" id="sldAttract" min="0.02" max="0.12" step="0.01" value="0.05" oninput="changeAttract(this.value)">
+                </div>
+            </div>
+
+            <!-- Manual Override buttons -->
+            <div class="section-title">Manual Override</div>
+            <div class="btn-grid">
+                <button class="btn active" id="btnPhase0" onclick="setManualPhase(0)">1. Shower Only</button>
+                <button class="btn" id="btnPhase1" onclick="setManualPhase(1)">2. Assemble</button>
+                <button class="btn" id="btnPhase2" onclick="setManualPhase(2)">3. Water Spirit</button>
+                <button class="btn" id="btnPhase3" onclick="setManualPhase(3)">4. Dissolve</button>
+            </div>
+
+            <!-- Color Themes -->
+            <div class="section-title">Color Palette</div>
+            <div class="palette-container">
+                <div class="color-dot dot-cyan active" data-color="cyan" onclick="selectPalette('cyan')"></div>
+                <div class="color-dot dot-purple" data-color="purple" onclick="selectPalette('purple')"></div>
+                <div class="color-dot dot-green" data-color="green" onclick="selectPalette('green')"></div>
+                <div class="color-dot dot-amber" data-color="amber" onclick="selectPalette('amber')"></div>
+            </div>
+        </aside>
+
+        <!-- Canvas Stage -->
+        <main class="stage" id="stage">
+            <canvas id="particleCanvas"></canvas>
+            <div class="canvas-tip">Move cursor over particles to create waves and splashes</div>
+        </main>
+    </div>
+
+    <script>
+        /* HTML Bindings */
+        const canvas = document.getElementById('particleCanvas');
+        const ctx = canvas.getContext('2d');
+        const stage = document.getElementById('stage');
+        const timerText = document.getElementById('timerText');
+        const phaseNameText = document.getElementById('phaseName');
+        const phaseSubText = document.getElementById('phaseSub');
+        const progressBar = document.getElementById('progressBar');
+        const chkAuto = document.getElementById('chkAuto');
+        const btnSound = document.getElementById('btnSound');
+
+        /* Simulation State Variables */
+        let particles = [];
+        let splashParticles = [];
+        let numParticles = 2500;
+        let gravity = 0.4;
+        let attractionStrength = 0.05;
+        let activePalette = 'cyan';
+        let isAutoCycle = true;
+        let timeInCycle = 0; // Current time in ms inside the 30-sec (30000ms) loop
+        let currentPhase = 0; // 0: Shower, 1: Assembling, 2: Formed Spirit, 3: Dissolution, 4: Drip/Reset
+        let cycleDuration = 30000; // 30 seconds
+        let colorChangeTimer = 0; // Timer to automatically cycle colors every 20s
+        let flipAngle = 0; // Rotation angle to flip human silhouette
+        const paletteNames = ['cyan', 'purple', 'green', 'amber'];
+
+        function cyclePalette() {
+            const currentIndex = paletteNames.indexOf(activePalette);
+            const nextIndex = (currentIndex + 1) % paletteNames.length;
+            selectPalette(paletteNames[nextIndex]);
+        }
+
+        // Mouse interaction
+        let mouse = { x: -1000, y: -1000, vx: 0, vy: 0, lastX: 0, lastY: 0, active: false };
+
+        /* Palette Definitions */
+        const palettes = {
+            cyan: {
+                base: [0, 220, 255],
+                bright: [200, 250, 255],
+                shadow: 'rgba(0, 240, 255, 0.6)'
+            },
+            purple: {
+                base: [157, 78, 221],
+                bright: [230, 200, 255],
+                shadow: 'rgba(157, 78, 221, 0.6)'
+            },
+            green: {
+                base: [0, 245, 212],
+                bright: [200, 255, 240],
+                shadow: 'rgba(0, 245, 212, 0.6)'
+            },
+            amber: {
+                base: [255, 159, 28],
+                bright: [255, 230, 180],
+                shadow: 'rgba(255, 159, 28, 0.6)'
+            }
+        };
+
+        /* Phase Timing Configuration */
+        const phaseTransitions = [
+            { limit: 8000,  phase: 0, name: "Shower Stream", sub: "Phase 1 / 5: Cleansing Stream" },
+            { limit: 13000, phase: 1, name: "Assembling Form", sub: "Phase 2 / 5: Coalescing Energy" },
+            { limit: 23000, phase: 2, name: "Water Spirit Active", sub: "Phase 3 / 5: Human Form Stabilized" },
+            { limit: 26000, phase: 3, name: "Dissolving Spirit", sub: "Phase 4 / 5: Cohesion Collapsing" },
+            { limit: 30000, phase: 4, name: "Refreshing Spa", sub: "Phase 5 / 5: Clearing & Resetting" }
+        ];
+
+        /* Silhouette coordinates generator (Precalculated on 600x800 system) */
+        let silhouettePoints = [];
+        let silhouetteRows = []; // Binned by vertical row for descending fluid simulation
+        let silhouetteHeight = 380; // approximate bounding height
+
+        function generateSilhouetteCache() {
+            const virtualW = 600;
+            const virtualH = 800;
+            const tempCanvas = document.createElement('canvas');
+            const tempCtx = tempCanvas.getContext('2d');
+            tempCanvas.width = virtualW;
+            tempCanvas.height = virtualH;
+
+            tempCtx.fillStyle = '#000000';
+            tempCtx.fillRect(0, 0, virtualW, virtualH);
+
+            tempCtx.fillStyle = '#ffffff';
+
+            const cx = virtualW / 2;
+            const cy = virtualH * 0.48; // center vertical
+            const scale = 1.15;
+
+            // Head
+            tempCtx.beginPath();
+            tempCtx.arc(cx, cy - 130 * scale, 22 * scale, 0, Math.PI * 2);
+            tempCtx.fill();
+
+            // Neck
+            tempCtx.beginPath();
+            tempCtx.ellipse(cx, cy - 110 * scale, 7 * scale, 12 * scale, 0, 0, Math.PI * 2);
+            tempCtx.fill();
+
+            // Shoulders & Torso
+            tempCtx.beginPath();
+            tempCtx.moveTo(cx - 45 * scale, cy - 96 * scale); // Left shoulder
+            tempCtx.lineTo(cx + 45 * scale, cy - 96 * scale); // Right shoulder
+            tempCtx.quadraticCurveTo(cx + 38 * scale, cy - 60 * scale, cx + 31 * scale, cy - 10 * scale); // Right chest
+            tempCtx.quadraticCurveTo(cx + 25 * scale, cy + 30 * scale, cx + 29 * scale, cy + 70 * scale); // Right hip
+            tempCtx.lineTo(cx - 29 * scale, cy + 70 * scale); // Left hip
+            tempCtx.quadraticCurveTo(cx - 25 * scale, cy + 30 * scale, cx - 31 * scale, cy - 10 * scale); // Left chest
+            tempCtx.quadraticCurveTo(cx - 38 * scale, cy - 60 * scale, cx - 45 * scale, cy - 96 * scale); // Left shoulder
+            tempCtx.closePath();
+            tempCtx.fill();
+
+            // Left Arm (outstretched)
+            tempCtx.beginPath();
+            tempCtx.moveTo(cx - 42 * scale, cy - 94 * scale);
+            tempCtx.quadraticCurveTo(cx - 80 * scale, cy - 65 * scale, cx - 115 * scale, cy - 35 * scale); // upper arm outer
+            tempCtx.quadraticCurveTo(cx - 120 * scale, cy - 25 * scale, cx - 112 * scale, cy - 20 * scale); // hand tip
+            tempCtx.quadraticCurveTo(cx - 80 * scale, cy - 40 * scale, cx - 40 * scale, cy - 70 * scale); // inner arm
+            tempCtx.closePath();
+            tempCtx.fill();
+
+            // Right Arm (outstretched)
+            tempCtx.beginPath();
+            tempCtx.moveTo(cx + 42 * scale, cy - 94 * scale);
+            tempCtx.quadraticCurveTo(cx + 80 * scale, cy - 65 * scale, cx + 115 * scale, cy - 35 * scale); // upper arm outer
+            tempCtx.quadraticCurveTo(cx + 120 * scale, cy - 25 * scale, cx + 112 * scale, cy - 20 * scale); // hand tip
+            tempCtx.quadraticCurveTo(cx + 80 * scale, cy - 40 * scale, cx + 40 * scale, cy - 70 * scale); // inner arm
+            tempCtx.closePath();
+            tempCtx.fill();
+
+            // Left Leg (standing straight, slightly turned out)
+            tempCtx.beginPath();
+            tempCtx.moveTo(cx - 27 * scale, cy + 70 * scale);
+            tempCtx.quadraticCurveTo(cx - 23 * scale, cy + 150 * scale, cx - 25 * scale, cy + 225 * scale); // outer side
+            tempCtx.lineTo(cx - 9 * scale, cy + 225 * scale); // inner ankle
+            tempCtx.quadraticCurveTo(cx - 8 * scale, cy + 150 * scale, cx - 5 * scale, cy + 70 * scale); // inner thigh
+            tempCtx.closePath();
+            tempCtx.fill();
+
+            // Right Leg
+            tempCtx.beginPath();
+            tempCtx.moveTo(cx + 27 * scale, cy + 70 * scale);
+            tempCtx.quadraticCurveTo(cx + 23 * scale, cy + 150 * scale, cx + 25 * scale, cy + 225 * scale); // outer side
+            tempCtx.lineTo(cx + 9 * scale, cy + 225 * scale); // inner ankle
+            tempCtx.quadraticCurveTo(cx + 8 * scale, cy + 150 * scale, cx + 5 * scale, cy + 70 * scale); // inner thigh
+            tempCtx.closePath();
+            tempCtx.fill();
+
+            // Scan pixels
+            const imgData = tempCtx.getImageData(0, 0, virtualW, virtualH);
+            const data = imgData.data;
+            const rawPoints = [];
+
+            const step = 3.6; // slightly denser grid for a more defined showcase
+            for (let y = 0; y < virtualH; y += step) {
+                for (let x = 0; x < virtualW; x += step) {
+                    const idx = (Math.floor(y) * virtualW + Math.floor(x)) * 4;
+                    if (data[idx] > 120) {
+                        // Store delta offsets relative to the virtual center (300, 384)
+                        const dx = x - cx;
+                        // Estimate body thickness to make depth proportional to width
+                        const r = Math.max(15, 38 - Math.abs(dx) * 0.45);
+                        const dz = (Math.random() - 0.5) * r * 2;
+                        rawPoints.push({
+                            dx: dx,
+                            dy: y - (cy + 20 * scale),
+                            dz: dz
+                        });
+                    }
+                }
+            }
+            silhouettePoints = rawPoints;
+
+            // Sort points by vertical coordinate (dy) and bin them in rows of 5px
+            silhouettePoints.sort((a, b) => a.dy - b.dy);
+            
+            const bins = {};
+            silhouettePoints.forEach(p => {
+                const binId = Math.floor(p.dy / 5) * 5;
+                if (!bins[binId]) bins[binId] = [];
+                bins[binId].push(p);
+            });
+
+            silhouetteRows = Object.keys(bins).sort((a, b) => Number(a) - Number(b)).map(k => bins[k]);
+        }
+
+        /* Sound Synthesizer via Web Audio API */
+        class SoundManager {
+            constructor() {
+                this.ctx = null;
+                this.rainSource = null;
+                this.rainGain = null;
+                this.synthOsc = null;
+                this.synthGain = null;
+                this.lowpassFilter = null;
+                this.initialized = false;
+                this.isPlaying = false;
+            }
+
+            init() {
+                if (this.initialized) return;
+                try {
+                    const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+                    this.ctx = new AudioContextClass();
+
+                    // 1. Noise Generator for Rain Hiss
+                    const bufferSize = 2 * this.ctx.sampleRate;
+                    const noiseBuffer = this.ctx.createBuffer(1, bufferSize, this.ctx.sampleRate);
+                    const output = noiseBuffer.getChannelData(0);
+                    for (let i = 0; i < bufferSize; i++) {
+                        output[i] = Math.random() * 2 - 1;
+                    }
+
+                    this.rainSource = this.ctx.createBufferSource();
+                    this.rainSource.buffer = noiseBuffer;
+                    this.rainSource.loop = true;
+
+                    // Filters to shape white noise into high-frequency liquid shower sizzle
+                    const bandpass = this.ctx.createBiquadFilter();
+                    bandpass.type = 'bandpass';
+                    bandpass.frequency.value = 900;
+                    bandpass.Q.value = 1.2;
+
+                    const highpass = this.ctx.createBiquadFilter();
+                    highpass.type = 'highpass';
+                    highpass.frequency.value = 1200;
+
+                    this.rainGain = this.ctx.createGain();
+                    this.rainGain.gain.setValueAtTime(0.04, this.ctx.currentTime); // gentle initial volume
+
+                    // Route rain
+                    this.rainSource.connect(bandpass);
+                    bandpass.connect(highpass);
+                    highpass.connect(this.rainGain);
+                    this.rainGain.connect(this.ctx.destination);
+
+                    // 2. Synthesizer Oscillator for Magic Coalescing Hum
+                    this.synthOsc = this.ctx.createOscillator();
+                    this.synthOsc.type = 'sine';
+                    this.synthOsc.frequency.setValueAtTime(146.83, this.ctx.currentTime); // D3 chord note
+
+                    this.lowpassFilter = this.ctx.createBiquadFilter();
+                    this.lowpassFilter.type = 'lowpass';
+                    this.lowpassFilter.frequency.setValueAtTime(250, this.ctx.currentTime);
+
+                    this.synthGain = this.ctx.createGain();
+                    this.synthGain.gain.setValueAtTime(0, this.ctx.currentTime); // silent initially
+
+                    this.synthOsc.connect(this.lowpassFilter);
+                    this.lowpassFilter.connect(this.synthGain);
+                    this.synthGain.connect(this.ctx.destination);
+
+                    // Start sound loops
+                    this.rainSource.start();
+                    this.synthOsc.start();
+
+                    this.initialized = true;
+                } catch (e) {
+                    console.error("Failed to initialize Web Audio context:", e);
+                }
+            }
+
+            toggle() {
+                if (!this.initialized) {
+                    this.init();
+                }
+                if (this.ctx && this.ctx.state === 'suspended') {
+                    this.ctx.resume();
+                }
+                
+                this.isPlaying = !this.isPlaying;
+                
+                if (this.isPlaying) {
+                    this.updateVolumeForPhase(currentPhase);
+                } else {
+                    if (this.ctx) {
+                        this.rainGain.gain.setTargetAtTime(0, this.ctx.currentTime, 0.15);
+                        this.synthGain.gain.setTargetAtTime(0, this.ctx.currentTime, 0.15);
+                    }
+                }
+                return this.isPlaying;
+            }
+
+            updateVolumeForPhase(phase) {
+                if (!this.initialized || !this.isPlaying) return;
+
+                const t = this.ctx.currentTime;
+                // Transition volume levels based on the state of the water
+                if (phase === 0) {
+                    // Phase 0: Loud shower rain, zero magic drone
+                    this.rainGain.gain.setTargetAtTime(0.08, t, 0.3);
+                    this.synthGain.gain.setTargetAtTime(0, t, 0.3);
+                    this.lowpassFilter.frequency.setTargetAtTime(250, t, 0.3);
+                } 
+                else if (phase === 1) {
+                    // Phase 1: Shower gets quieter, magic hum fades in
+                    this.rainGain.gain.setTargetAtTime(0.03, t, 0.4);
+                    this.synthGain.gain.setTargetAtTime(0.12, t, 0.5);
+                    this.synthOsc.frequency.setTargetAtTime(164.81, t, 0.5); // Morph to E3
+                    this.lowpassFilter.frequency.setTargetAtTime(350, t, 0.4);
+                } 
+                else if (phase === 2) {
+                    // Phase 2: Magic drone is loudest, shimmering/pulsating sound
+                    this.rainGain.gain.setTargetAtTime(0.02, t, 0.4);
+                    this.synthGain.gain.setTargetAtTime(0.20, t, 0.6);
+                    this.synthOsc.frequency.setTargetAtTime(196.00, t, 0.6); // G3
+                    this.lowpassFilter.frequency.setTargetAtTime(500, t, 0.5);
+                } 
+                else if (phase === 3) {
+                    // Phase 3: Dissolve, quick splash hiss sound then drop
+                    this.rainGain.gain.setValueAtTime(0.16, t); // splash volume burst
+                    this.rainGain.gain.setTargetAtTime(0.03, t + 0.1, 0.3);
+                    this.synthGain.gain.setTargetAtTime(0, t, 0.2);
+                }
+                else if (phase === 4) {
+                    // Phase 4: Gentle dripping silence
+                    this.rainGain.gain.setTargetAtTime(0.015, t, 0.4);
+                    this.synthGain.gain.setTargetAtTime(0, t, 0.1);
+                }
+            }
+        }
+        const soundMgr = new SoundManager();
+
+        function toggleSound() {
+            const playing = soundMgr.toggle();
+            if (playing) {
+                btnSound.textContent = "🔊 Disable Soundscape";
+                btnSound.classList.add('playing');
+            } else {
+                btnSound.textContent = "🔇 Enable Water Soundscape";
+                btnSound.classList.remove('playing');
+            }
+        }
+
+        /* Particle Classes */
+        class Particle {
+            constructor() {
+                this.reset();
+                // Spawn randomly within the initial timeline so they are staggered
+                this.y = Math.random() * canvas.height;
+            }
+
+            reset() {
+                const cx = canvas.width / 2;
+                // Emit from the nozzles of the shower square
+                const shWidth = 180;
+                const shX = cx - shWidth / 2;
+                this.x = shX + 15 + Math.random() * (shWidth - 30);
+                this.y = 45 + (Math.random() - 0.5) * 8;
+                this.vx = (Math.random() - 0.5) * 0.8;
+                this.vy = Math.random() * 2 + 1;
+                this.size = Math.random() * 2 + 1;
+                this.colorFactor = Math.random();
+                this.alpha = Math.random() * 0.4 + 0.6;
+                this.captured = false;
+                this.flowRow = 0;
+                this.flowCol = Math.random();
+                this.isTrickle = false;
+            }
+
+            update(cx, cy, scale, flipAngle) {
+                // If it is a trickle particle during the formed state, let it just fall down the shower
+                if (this.isTrickle) {
+                    this.vy += gravity;
+                    this.x += this.vx;
+                    this.y += this.vy;
+
+                    // Collision with floor
+                    const floorY = canvas.height - 85;
+                    if (this.y >= floorY) {
+                        triggerSplash(this.x, floorY);
+                        this.reset();
+                    }
+                    return;
+                }
+
+                if (currentPhase === 0 || currentPhase === 4) {
+                    // --- NORMAL SHOWER FALLING ---
+                    this.vy += gravity;
+                    this.x += this.vx;
+                    this.y += this.vy;
+
+                    // Add subtle mouse repulsion in normal state
+                    const dx = this.x - mouse.x;
+                    const dy = this.y - mouse.y;
+                    const dist = Math.sqrt(dx*dx + dy*dy);
+                    if (dist < 80) {
+                        const push = (1 - dist / 80) * 2;
+                        const angle = Math.atan2(dy, dx);
+                        this.x += Math.cos(angle) * push;
+                        this.y += Math.sin(angle) * push;
+                    }
+
+                    // Floor Collision
+                    const floorY = canvas.height - 85;
+                    if (this.y >= floorY) {
+                        if (Math.random() < 0.6) {
+                            triggerSplash(this.x, floorY);
+                        }
+                        this.reset();
+                    }
+                } 
+                else if (currentPhase === 1) {
+                    // --- ASSEMBLING CONSCIOUSNESS ---
+                    // Pull particles towards their assigned target coordinates in the human silhouette
+                    const pt = silhouettePoints[this.targetIndex % silhouettePoints.length];
+                    const tx = cx + (pt.dx * Math.cos(flipAngle) - pt.dz * Math.sin(flipAngle)) * scale;
+                    const ty = cy + pt.dy * scale;
+
+                    const dx = tx - this.x;
+                    const dy = ty - this.y;
+                    const dist = Math.sqrt(dx*dx + dy*dy);
+
+                    if (dist > 5) {
+                        // Apply magnetic spring force to coalesce organically
+                        const ax = dx * attractionStrength - this.vx * 0.15;
+                        const ay = dy * attractionStrength - this.vy * 0.15;
+                        this.vx += ax;
+                        this.vy += ay;
+                        this.x += this.vx;
+                        this.y += this.vy;
+                    } else {
+                        // Smoothly lock onto target row when close
+                        this.x = tx;
+                        this.y = ty;
+                        this.captured = true;
+                        
+                        // Estimate start row progress based on vertical percentage
+                        const yPercent = (pt.dy + silhouetteHeight/2) / silhouetteHeight;
+                        this.flowRow = Math.min(silhouetteRows.length - 1, Math.max(0, Math.floor(yPercent * silhouetteRows.length)));
+                    }
+                } 
+                else if (currentPhase === 2) {
+                    // --- WATER SPIRIT ACTIVE (FLOWING) ---
+                    if (!this.captured) {
+                        // If not yet captured, keep drawing it towards the targets
+                        const pt = silhouettePoints[this.targetIndex % silhouettePoints.length];
+                        const tx = cx + (pt.dx * Math.cos(flipAngle) - pt.dz * Math.sin(flipAngle)) * scale;
+                        const ty = cy + pt.dy * scale;
+                        this.x += (tx - this.x) * 0.15;
+                        this.y += (ty - this.y) * 0.15;
+                        if (Math.abs(this.x - tx) < 5) this.captured = true;
+                    } else {
+                        // Particles slide down the row indexes representing the fluid body
+                        this.flowRow += (0.15 + this.colorFactor * 0.1); // flow speed
+                        
+                        let rIndex = Math.floor(this.flowRow);
+                        if (rIndex >= silhouetteRows.length) {
+                            // Reached the feet: release to fall or wrap to head
+                            if (Math.random() < 0.2) {
+                                // Break away, fall to floor
+                                this.captured = false;
+                                this.vy = 1;
+                                this.vx = (Math.random() - 0.5) * 1.5;
+                                return;
+                            } else {
+                                // Wrap back to head to keep density
+                                this.flowRow = 0;
+                                this.flowCol = Math.random();
+                                rIndex = 0;
+                            }
+                        }
+
+                        const rowPoints = silhouetteRows[rIndex];
+                        if (rowPoints && rowPoints.length > 0) {
+                            const pIndex = Math.floor(this.flowCol * (rowPoints.length - 1));
+                            const pt = rowPoints[pIndex];
+                            
+                            // Target coordinate with wave displacement
+                            const waveFreq = 0.05;
+                            const waveAmp = 2.5;
+                            const wave = Math.sin(Date.now() * 0.005 - pt.dy * waveFreq) * waveAmp;
+                            
+                            const tx = cx + ((pt.dx * Math.cos(flipAngle) - pt.dz * Math.sin(flipAngle)) + wave) * scale;
+                            const ty = cy + pt.dy * scale;
+
+                            // Move to target
+                            this.x += (tx - this.x) * 0.35;
+                            this.y += (ty - this.y) * 0.35;
+                        }
+                    }
+
+                    // Mouse displacement while captured (fluid wave response)
+                    const dx = this.x - mouse.x;
+                    const dy = this.y - mouse.y;
+                    const dist = Math.sqrt(dx*dx + dy*dy);
+                    if (dist < 75) {
+                        const force = (1 - dist / 75) * 8;
+                        const angle = Math.atan2(dy, dx);
+                        this.x += Math.cos(angle) * force;
+                        this.y += Math.sin(angle) * force;
+                    }
+                } 
+                else if (currentPhase === 3) {
+                    // --- DISSOLVING SPIRIT ---
+                    if (this.captured) {
+                        // Release hold, add sideways splash/drip velocity
+                        this.captured = false;
+                        this.vx = (Math.random() - 0.5) * 3;
+                        this.vy = Math.random() * 2 + 1;
+                    }
+                    this.vy += gravity;
+                    this.x += this.vx;
+                    this.y += this.vy;
+
+                    // Collision with floor
+                    const floorY = canvas.height - 85;
+                    if (this.y >= floorY) {
+                        triggerSplash(this.x, floorY);
+                        this.reset();
+                    }
+                }
+            }
+
+            draw() {
+                let r, g, b;
+                const pal = palettes[activePalette];
+                
+                // Color shifting - ripple glow pulses traveling down the figure
+                if (currentPhase === 2 && this.captured) {
+                    const waveFactor = Math.sin((Date.now() * 0.008 - this.y * 0.03) % Math.PI);
+                    if (waveFactor > 0.85) {
+                        // Bright glow ripple
+                        r = pal.bright[0]; g = pal.bright[1]; b = pal.bright[2];
+                    } else {
+                        // Normal color
+                        r = Math.floor(pal.base[0] + (pal.bright[0] - pal.base[0]) * this.colorFactor * 0.4);
+                        g = Math.floor(pal.base[1] + (pal.bright[1] - pal.base[1]) * this.colorFactor * 0.4);
+                        b = Math.floor(pal.base[2] + (pal.bright[2] - pal.base[2]) * this.colorFactor * 0.4);
+                    }
+                } else {
+                    r = pal.base[0];
+                    g = pal.base[1];
+                    b = pal.base[2];
+                }
+
+                ctx.save();
+                
+                let alpha = this.alpha;
+                let size = this.size;
+                if (this.captured) {
+                    // Increase size and brightness/glow to showcase human form properly
+                    alpha = Math.min(1.0, this.alpha + 0.25);
+                    size = this.size * 1.35;
+                }
+                
+                ctx.globalAlpha = alpha;
+                ctx.fillStyle = `rgb(${r}, ${g}, ${b})`;
+                
+                // Draw drop with motion blur line or simple circles
+                if (this.vy > 4 && !this.captured) {
+                    ctx.beginPath();
+                    ctx.moveTo(this.x, this.y);
+                    ctx.lineTo(this.x - this.vx * 1.5, this.y - this.vy * 1.5);
+                    ctx.strokeStyle = `rgba(${r}, ${g}, ${b}, ${alpha})`;
+                    ctx.lineWidth = size;
+                    ctx.stroke();
+                } else {
+                    ctx.beginPath();
+                    ctx.arc(this.x, this.y, size, 0, Math.PI * 2);
+                    ctx.fill();
+                }
+                ctx.restore();
+            }
+        }
+
+        class Splash {
+            constructor(x, y, color) {
+                this.x = x;
+                this.y = y;
+                this.vx = (Math.random() - 0.5) * 3;
+                this.vy = -Math.random() * 2 - 1.5;
+                this.size = Math.random() * 1.5 + 0.6;
+                this.alpha = 1.0;
+                this.color = color;
+                this.decay = 0.04 + Math.random() * 0.03;
+            }
+
+            update() {
+                this.x += this.vx;
+                this.y += this.vy;
+                this.vy += 0.25; // gravity
+                this.alpha -= this.decay;
+            }
+
+            draw() {
+                ctx.save();
+                ctx.globalAlpha = Math.max(0, this.alpha);
+                ctx.fillStyle = this.color;
+                ctx.beginPath();
+                ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.restore();
+            }
+        }
+
+        /* Trigger a floor splash */
+        function triggerSplash(x, y) {
+            const pal = palettes[activePalette];
+            const colorStr = `rgb(${pal.base[0]}, ${pal.base[1]}, ${pal.base[2]})`;
+            const numSplashes = Math.floor(Math.random() * 2) + 2;
+            for (let i = 0; i < numSplashes; i++) {
+                splashParticles.push(new Splash(x, y, colorStr));
+            }
+        }
+
+        /* Setup Canvas Size and Initialise System */
+        function resizeCanvas() {
+            canvas.width = stage.clientWidth;
+            canvas.height = stage.clientHeight;
+            
+            // Adjust particle count on resize if needed
+            initParticles();
+        }
+
+        function initParticles() {
+            particles = [];
+            for (let i = 0; i < numParticles; i++) {
+                const p = new Particle();
+                p.targetIndex = i;
+                particles.push(p);
+            }
+        }
+
+        /* 30-Second Automatic Cycle State Machine */
+        function updateCycle(deltaTime) {
+            if (!isAutoCycle) return;
+
+            timeInCycle += deltaTime;
+            if (timeInCycle >= cycleDuration) {
+                timeInCycle = 0;
+            }
+
+            // Find current phase based on elapsed time limits
+            let selectedPhaseObj = phaseTransitions[0];
+            for (let i = 0; i < phaseTransitions.length; i++) {
+                if (timeInCycle < phaseTransitions[i].limit) {
+                    selectedPhaseObj = phaseTransitions[i];
+                    break;
+                }
+            }
+
+            if (selectedPhaseObj.phase !== currentPhase) {
+                setPhase(selectedPhaseObj.phase);
+            }
+
+            // Update UI timer and circular progress
+            const secondsLeft = Math.ceil((cycleDuration - timeInCycle) / 1000);
+            timerText.textContent = `${secondsLeft}s`;
+
+            const percentage = timeInCycle / cycleDuration;
+            const strokeOffset = 220 - (220 * percentage);
+            progressBar.style.strokeDashoffset = strokeOffset;
+        }
+
+        function setPhase(phaseNum) {
+            currentPhase = phaseNum;
+            const obj = phaseTransitions.find(t => t.phase === phaseNum) || phaseTransitions[0];
+            
+            phaseNameText.textContent = obj.name;
+            phaseSubText.textContent = obj.sub;
+
+            // Apply different particle constraints per phase
+            particles.forEach(p => {
+                if (phaseNum === 2) {
+                    p.isTrickle = (Math.random() < 0.08); // 8% keep trickling down
+                } else if (phaseNum === 4) {
+                    p.isTrickle = (Math.random() < 0.85); // 85% stops to dry/drip out
+                } else {
+                    p.isTrickle = false;
+                }
+            });
+
+            // Adjust active button styling
+            for (let i = 0; i < 4; i++) {
+                const btn = document.getElementById(`btnPhase${i}`);
+                if (btn) {
+                    if (i === phaseNum) {
+                        btn.classList.add('active');
+                    } else {
+                        btn.classList.remove('active');
+                    }
+                }
+            }
+
+            // Update soundscape volumes
+            soundMgr.updateVolumeForPhase(phaseNum);
+        }
+
+        /* Core Animation Loop */
+        let lastTime = 0;
+        function animate(timestamp) {
+            if (!lastTime) lastTime = timestamp;
+            const deltaTime = timestamp - lastTime;
+            lastTime = timestamp;
+
+            // Clear screen
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            // 1. Draw background grid/bloom details
+            drawSpaEnvironment();
+
+            // 2. Update state machine
+            updateCycle(deltaTime);
+
+            // Auto cycle colors every 20 seconds
+            colorChangeTimer += deltaTime;
+            if (colorChangeTimer >= 20000) {
+                colorChangeTimer = 0;
+                cyclePalette();
+            }
+
+            // Determine dimensions for silhouette alignment
+            const cx = canvas.width / 2;
+            const cy = canvas.height * 0.48;
+            const scale = (canvas.height * 0.6) / silhouetteHeight;
+
+            // Compute flip angle (3D rotation spin around Y-axis)
+            if (currentPhase === 2) {
+                // Spin round and round (360 degrees) when active
+                flipAngle += 0.02;
+            } else {
+                // Return smoothly to front-facing (0 angle) when not active
+                flipAngle += (0 - flipAngle) * 0.15;
+            }
+
+            // 3. Draw Emitter Shower Head
+            drawShowerHead(cx);
+
+            // 4. Update and Draw Water Drops
+            particles.forEach(p => {
+                p.update(cx, cy, scale, flipAngle);
+                p.draw();
+            });
+
+            // 5. Update and Draw splashes
+            for (let i = splashParticles.length - 1; i >= 0; i--) {
+                const sp = splashParticles[i];
+                sp.update();
+                if (sp.alpha <= 0) {
+                    splashParticles.splice(i, 1);
+                } else {
+                    sp.draw();
+                }
+            }
+
+            requestAnimationFrame(animate);
+        }
+
+        /* Draw static background shower fixtures & lighting */
+        function drawShowerHead(cx) {
+            ctx.save();
+            ctx.shadowBlur = 20;
+            const pal = palettes[activePalette];
+            ctx.shadowColor = pal.shadow;
+
+            const shWidth = 180;
+            const shHeight = 22;
+            const shX = cx - shWidth / 2;
+            const shY = 40;
+
+            // Glass/Metal panel
+            ctx.fillStyle = 'rgba(15, 20, 35, 0.9)';
+            ctx.strokeStyle = `rgba(${pal.base[0]}, ${pal.base[1]}, ${pal.base[2]}, 0.5)`;
+            ctx.lineWidth = 1.5;
+            ctx.beginPath();
+            ctx.roundRect(shX, shY, shWidth, shHeight, 6);
+            ctx.fill();
+            ctx.stroke();
+
+            // Glowing nozzles
+            const nozzleCols = 15;
+            ctx.fillStyle = `rgb(${pal.bright[0]}, ${pal.bright[1]}, ${pal.bright[2]})`;
+            for (let c = 0; c < nozzleCols; c++) {
+                const nx = shX + 15 + c * (shWidth - 30) / (nozzleCols - 1);
+                const ny = shY + 11;
+                ctx.beginPath();
+                ctx.arc(nx, ny, 1.5, 0, Math.PI * 2);
+                ctx.fill();
+            }
+            ctx.restore();
+        }
+
+        function drawSpaEnvironment() {
+            // Draw floor line
+            const floorY = canvas.height - 80;
+            ctx.strokeStyle = 'rgba(255, 255, 255, 0.05)';
+            ctx.lineWidth = 1;
+            ctx.beginPath();
+            ctx.moveTo(0, floorY);
+            ctx.lineTo(canvas.width, floorY);
+            ctx.stroke();
+
+            // Draw water pool glow at the bottom
+            const pal = palettes[activePalette];
+            const grad = ctx.createLinearGradient(0, floorY, 0, canvas.height);
+            grad.addColorStop(0, `rgba(${pal.base[0]}, ${pal.base[1]}, ${pal.base[2]}, 0.05)`);
+            grad.addColorStop(1, 'rgba(0, 0, 0, 0)');
+            ctx.fillStyle = grad;
+            ctx.fillRect(0, floorY, canvas.width, 80);
+        }
+
+        /* Mouse Event Listeners */
+        window.addEventListener('mousemove', (e) => {
+            const rect = canvas.getBoundingClientRect();
+            const currentX = e.clientX - rect.left;
+            const currentY = e.clientY - rect.top;
+
+            if (currentX >= 0 && currentX <= canvas.width && currentY >= 0 && currentY <= canvas.height) {
+                mouse.vx = currentX - mouse.lastX;
+                mouse.vy = currentY - mouse.lastY;
+                mouse.x = currentX;
+                mouse.y = currentY;
+                mouse.active = true;
+            } else {
+                mouse.active = false;
+                mouse.x = -1000;
+                mouse.y = -1000;
+            }
+            mouse.lastX = currentX;
+            mouse.lastY = currentY;
+        });
+
+        window.addEventListener('mouseleave', () => {
+            mouse.active = false;
+            mouse.x = -1000;
+            mouse.y = -1000;
+        });
+
+        /* Dashboard UI Trigger Functions */
+        function toggleAutoCycle() {
+            isAutoCycle = chkAuto.checked;
+            if (!isAutoCycle) {
+                // Remove ticking progress bar circle on manual mode
+                progressBar.style.strokeDashoffset = 0;
+                timerText.textContent = "MAN";
+            } else {
+                timeInCycle = 0;
+                setPhase(0);
+            }
+        }
+
+        function setManualPhase(phaseNum) {
+            // Force turn off auto cycle
+            chkAuto.checked = false;
+            isAutoCycle = false;
+            progressBar.style.strokeDashoffset = 0;
+            timerText.textContent = "MAN";
+
+            setPhase(phaseNum);
+        }
+
+        function changeDensity(val) {
+            numParticles = parseInt(val);
+            document.getElementById('valDensity').textContent = val;
+            initParticles();
+        }
+
+        function changeGravity(val) {
+            gravity = parseFloat(val);
+            document.getElementById('valGravity').textContent = val;
+        }
+
+        function changeAttract(val) {
+            attractionStrength = parseFloat(val);
+            document.getElementById('valAttract').textContent = val;
+        }
+
+        function selectPalette(name) {
+            activePalette = name;
+            document.querySelectorAll('.color-dot').forEach(dot => {
+                if (dot.dataset.color === name) {
+                    dot.classList.add('active');
+                } else {
+                    dot.classList.remove('active');
+                }
+            });
+
+            // Update primary theme colors in CSS variables dynamically
+            const pal = palettes[name];
+            document.documentElement.style.setProperty('--primary', `rgb(${pal.base[0]}, ${pal.base[1]}, ${pal.base[2]})`);
+            document.documentElement.style.setProperty('--primary-glow', pal.shadow);
+        }
+
+        // Window resize
+        window.addEventListener('resize', resizeCanvas);
+
+        /* Initial Setup */
+        generateSilhouetteCache();
+        resizeCanvas();
+        requestAnimationFrame(animate);
+    </script>
+</body>
+</html>
